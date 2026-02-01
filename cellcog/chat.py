@@ -325,7 +325,7 @@ class ChatManager:
             resp = requests.request(
                 method=method,
                 url=f"{self.config.api_base_url}{path}",
-                headers={"Authorization": f"Bearer {self.config.api_key}"},
+                headers={"X-API-Key": self.config.api_key},
                 json=data,
                 timeout=60,
             )

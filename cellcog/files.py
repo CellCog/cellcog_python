@@ -178,7 +178,7 @@ class FileProcessor:
         try:
             resp = requests.post(
                 f"{self.config.api_base_url}/files/request-upload",
-                headers={"Authorization": f"Bearer {self.config.api_key}"},
+                headers={"X-API-Key": self.config.api_key},
                 json={
                     "filename": path.name,
                     "file_size": file_size,
@@ -208,7 +208,7 @@ class FileProcessor:
         try:
             confirm_resp = requests.post(
                 f"{self.config.api_base_url}/files/confirm-upload/{data['file_id']}",
-                headers={"Authorization": f"Bearer {self.config.api_key}"},
+                headers={"X-API-Key": self.config.api_key},
                 timeout=30,
             )
             confirm_resp.raise_for_status()
