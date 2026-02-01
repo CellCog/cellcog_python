@@ -119,6 +119,159 @@ if final["status"] == "completed":
 
 ---
 
+## Non-Blocking Pattern (For Long-Running Jobs)
+
+CellCog jobs can take 2-30 minutes. To avoid blocking your session while waiting, use **sub-agent delegation with sessions_spawn**.
+
+### Using sessions_spawn (Recommended for Jobs >5 Minutes)
+
+Instead of waiting inline and blocking your main thread, spawn a sub-agent to handle the CellCog job:
+
+```python
+# In your main session, delegate to a sub-agent:
+sessions_spawn(
+    task="""
+Run this CellCog job and deliver the results:
+
+**User Request:** Create a comprehensive market analysis report for electric vehicles in 2026.
+
+**CellCog Prompt:**
+Using cellcog in agent team mode, research the electric vehicle market in 2026.
+Include market size, top manufacturers, technology trends, and growth projections.
+
+Save comprehensive report to:
+<GENERATE_FILE>/home/node/outputs/ev_market_2026.pdf</GENERATE_FILE>
+
+**After completion:**
+1. Confirm the job completed successfully
+2. List generated files with their locations
+3. Provide a brief summary of key findings
+4. If timeout occurred or job incomplete, explain status
+    """,
+    label="cellcog-ev-report",
+    runTimeoutSeconds=1800  # 30 min for complex research
+)
+```
+
+Then respond to the user immediately:
+> "I've submitted your EV market report to CellCog's deep research team. This will take 10-20 minutes. I'll notify you automatically when it's ready — in the meantime, feel free to ask me anything else!"
+
+**Benefits:**
+- ✅ Main session stays responsive
+- ✅ User gets immediate acknowledgment
+- ✅ Results delivered automatically when complete
+- ✅ No polling loops or blocked conversations
+- ✅ Can handle multiple CellCog jobs in parallel
+
+### Handling Timeouts and Incomplete Results
+
+If the CellCog job doesn't complete within the timeout:
+
+```python
+# In your sub-agent task instructions:
+"""
+**Timeout Handling:**
+If wait_for_completion() returns status='timeout', check the chat:
+
+result = client.wait_for_completion(chat_id, timeout_seconds=1800)
+
+if result['status'] == 'timeout':
+    # Job still processing - inform user
+    status = client.get_status(chat_id)
+    if status['is_operating']:
+        print("CellCog job still processing. Extending timeout...")
+        # Wait another round
+        result = client.wait_for_completion(chat_id, timeout_seconds=1800)
+    
+if result['status'] == 'completed':
+    # Deliver results
+elif result['status'] == 'error':
+    # Handle error
+    print(f"Job failed: {result.get('error_type')}")
+"""
+```
+
+### When to Use Non-Blocking vs Blocking
+
+| Job Type | Expected Time | Recommended Pattern |
+|----------|---------------|---------------------|
+| Simple Q&A | 30-90 sec | **Inline blocking** - Fast enough |
+| Single image/chart | 1-2 min | **Inline blocking** - Acceptable wait |
+| Data analysis report | 2-5 min | **sessions_spawn** - Keep responsive |
+| Research + multimedia | 5-15 min | **sessions_spawn** - Definitely |
+| Complex multi-output | 10-30 min | **sessions_spawn** - Required |
+
+### Sub-Agent Task Template
+
+For consistent results, structure your sessions_spawn task like this:
+
+```
+Run this CellCog job and deliver results to the user:
+
+**User Request:** [original request in plain language]
+
+**Chat Mode:** agent team [or: agent, depending on task complexity]
+
+**CellCog Prompt:**
+[the actual prompt with SHOW_FILE/GENERATE_FILE tags]
+
+**Timeout Strategy:**
+- Initial wait: 1800 seconds (30 min)
+- If timeout: Check status and potentially extend
+- If error: Report to user with details
+
+**After completion:**
+1. Confirm job completed successfully
+2. List all generated files with paths (verify they exist)
+3. Summarize the output/findings
+4. Provide next steps or offer to refine
+```
+
+### Example: Full Non-Blocking Workflow
+
+**User asks:** "Create a marketing video for my coffee shop"
+
+**Your response with sessions_spawn:**
+```python
+sessions_spawn(
+    task="""
+Run this CellCog marketing video job:
+
+**User Request:** Marketing video for coffee shop
+
+**Chat Mode:** agent team
+
+**CellCog Prompt:**
+Using cellcog in agent team mode, create a 30-second marketing video for a 
+coffee shop called "Bean There". Modern aesthetic, warm tones, upbeat music.
+
+Save video to: <GENERATE_FILE>/home/node/outputs/bean_there_promo.mp4</GENERATE_FILE>
+Save script to: <GENERATE_FILE>/home/node/outputs/video_script.txt</GENERATE_FILE>
+
+**Timeout Strategy:**
+- Wait up to 30 minutes
+- If timeout, check status and inform user
+- If error, report details
+
+**After completion:**
+Confirm both files created, describe the video content, and ask if any edits needed.
+    """,
+    label="cellcog-coffee-video",
+    runTimeoutSeconds=1800
+)
+```
+
+**Then immediately tell the user:**
+> "🎬 I've started creating your coffee shop marketing video with CellCog! This involves:
+> - AI-generated visuals
+> - Professional voiceover
+> - Background music composition
+>
+> **Expected time:** 15-25 minutes for a polished 30-second video.
+> I'll ping you when it's ready! What else can I help with?"
+
+---
+
 ## File Handling: The CellCog Advantage
 
 ### Multiple Input Files (Any Format)
