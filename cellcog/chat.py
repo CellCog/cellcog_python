@@ -30,7 +30,7 @@ class ChatManager:
         self.config = config
         self.files = file_processor
 
-    def create(self, prompt: str, project_id: Optional[str] = None) -> dict:
+    def create(self, prompt: str, project_id: Optional[str] = None, chat_mode: str = "agent team") -> dict:
         """
         Create a new CellCog chat.
 
@@ -40,6 +40,7 @@ class ChatManager:
         Args:
             prompt: Initial prompt (can include SHOW_FILE, GENERATE_FILE tags)
             project_id: Optional CellCog project ID
+            chat_mode: "agent team" (deep reasoning, multi-agent) or "agent" (single agent, faster)
 
         Returns:
             {
@@ -55,11 +56,18 @@ class ChatManager:
         """
         self.config.require_configured()
 
+        # Map user-friendly mode names to API values
+        mode_mapping = {
+            "agent team": "agent_in_the_loop",  # Multi-agent team for deep reasoning
+            "agent": "human_in_the_loop",        # Single agent for step-by-step
+        }
+        api_chat_mode = mode_mapping.get(chat_mode, chat_mode)
+
         # Transform outgoing message - upload local files
         transformed, uploaded = self.files.transform_outgoing(prompt)
 
         # Create chat
-        data = {"message": transformed}
+        data = {"message": transformed, "chat_mode": api_chat_mode}
         if project_id:
             data["project_id"] = project_id
 
@@ -212,7 +220,11 @@ class ChatManager:
         chat_id: str,
         timeout_seconds: int = 600,
         poll_interval: int = 10,
+        timeout: int = None,  # Backwards compatibility alias
     ) -> dict:
+        # Handle backwards compatibility
+        if timeout is not None:
+            timeout_seconds = timeout
         """
         Poll until chat completes or timeout.
 
