@@ -22,7 +22,7 @@ class FileProcessor:
 
     Key responsibilities:
     - Upload local files referenced in SHOW_FILE tags
-    - Add openclaw_path attribute to track original paths
+    - Add external_local_path attribute to track original paths
     - Download files from CellCog responses to specified locations
     - Transform message content between local paths and blob names
     """
@@ -38,7 +38,7 @@ class FileProcessor:
         Operations:
         1. Find SHOW_FILE tags with local paths
         2. Upload each local file to CellCog
-        3. Replace local path with blob_name, add openclaw_path attribute
+        3. Replace local path with blob_name, add external_local_path attribute
         4. Keep GENERATE_FILE tags unchanged (passed to CellCog agent)
 
         Args:
@@ -60,8 +60,8 @@ class FileProcessor:
                     blob_name = self._upload_file(file_path)
                     uploaded.append({"local": file_path, "blob": blob_name})
 
-                    # Add openclaw_path to preserve original path for history restoration
-                    return f'<SHOW_FILE openclaw_path="{file_path}">{blob_name}</SHOW_FILE>'
+                    # Add external_local_path to preserve original path for history restoration
+                    return f'<SHOW_FILE external_local_path="{file_path}">{blob_name}</SHOW_FILE>'
                 except FileUploadError:
                     # If upload fails, keep original (will fail on CellCog side)
                     return match.group(0)
@@ -78,18 +78,16 @@ class FileProcessor:
         )
 
         # GENERATE_FILE passes through unchanged
-        # CellCog agent will read it and use the path for openclaw_path in response
+        # CellCog agent will read it and use the path for external_local_path in response
 
         return transformed, uploaded
 
-    def transform_incoming_history(
-        self, messages: list, blob_name_to_url: dict, chat_id: str
-    ) -> list:
+    def transform_incoming_history(self, messages: list, blob_name_to_url: dict, chat_id: str) -> list:
         """
         Transform incoming chat history from CellCog.
 
         Operations:
-        1. For ALL messages: Replace blob_names with openclaw_path (local paths)
+        1. For ALL messages: Replace blob_names with external_local_path (local paths)
         2. For CellCog messages ONLY: Download files before replacing
 
         Args:
@@ -111,16 +109,16 @@ class FileProcessor:
                 attrs = match.group(1)
                 blob_name = match.group(2).strip()
 
-                # Extract openclaw_path attribute
-                openclaw_path_match = re.search(r'openclaw_path="([^"]*)"', attrs)
+                # Extract external_local_path attribute
+                external_local_path_match = re.search(r'external_local_path="([^"]*)"', attrs)
 
-                if openclaw_path_match:
-                    openclaw_path = openclaw_path_match.group(1)
+                if external_local_path_match:
+                    external_local_path = external_local_path_match.group(1)
                 elif blob_name in blob_name_to_url:
-                    # No openclaw_path - use default download location
+                    # No external_local_path - use default download location
                     url_data = blob_name_to_url[blob_name]
                     filename = url_data.get("filename") or blob_name.split("/")[-1]
-                    openclaw_path = str(self.default_download_dir / chat_id / filename)
+                    external_local_path = str(self.default_download_dir / chat_id / filename)
                 else:
                     # No URL data available - keep as-is
                     return match.group(0)
@@ -129,14 +127,14 @@ class FileProcessor:
                 if not is_user_message and blob_name in blob_name_to_url:
                     url_data = blob_name_to_url[blob_name]
                     try:
-                        self._download_file(url_data["url"], openclaw_path)
+                        self._download_file(url_data["url"], external_local_path)
                     except FileDownloadError:
                         # If download fails, still return the path
                         # (file just won't exist)
                         pass
 
                 # For ALL messages: restore the original local path
-                return f"<SHOW_FILE>{openclaw_path}</SHOW_FILE>"
+                return f"<SHOW_FILE>{external_local_path}</SHOW_FILE>"
 
             transformed_content = re.sub(
                 r"<SHOW_FILE([^>]*)>(.*?)</SHOW_FILE>",
