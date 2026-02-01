@@ -106,7 +106,7 @@ class CellCogClient:
 
     # ==================== Chat Operations ====================
 
-    def create_chat(self, prompt: str, project_id: Optional[str] = None) -> dict:
+    def create_chat(self, prompt: str, project_id: Optional[str] = None, chat_mode: str = "agent team") -> dict:
         """
         Create a new CellCog chat.
 
@@ -118,6 +118,7 @@ class CellCogClient:
                 - <SHOW_FILE>/path/to/input.csv</SHOW_FILE> (uploaded automatically)
                 - <GENERATE_FILE>/path/for/output.pdf</GENERATE_FILE> (output location hint)
             project_id: Optional CellCog project ID for context
+            chat_mode: "agent team" (deep reasoning, multi-agent) or "agent" (single agent, faster)
 
         Returns:
             {
@@ -140,7 +141,7 @@ class CellCogClient:
                 <GENERATE_FILE>/home/user/reports/analysis.pdf</GENERATE_FILE>
             ''')
         """
-        return self._chat.create(prompt, project_id)
+        return self._chat.create(prompt, project_id, chat_mode)
 
     def send_message(self, chat_id: str, message: str) -> dict:
         """
