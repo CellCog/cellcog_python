@@ -25,11 +25,13 @@ class FileProcessor:
     - Add external_local_path attribute to track original paths
     - Download files from CellCog responses to specified locations
     - Transform message content between local paths and blob names
+    - Auto-download files without external_local_path to ~/.cellcog/chats/{chat_id}/
+    - Skip downloading files for already-seen messages (optimization)
     """
 
     def __init__(self, config: Config):
         self.config = config
-        self.default_download_dir = Path("~/.openclaw/cellcog_files").expanduser()
+        self.default_download_dir = Path("~/.cellcog/chats").expanduser()
 
     def transform_outgoing(self, message: str) -> tuple[str, list]:
         """
@@ -82,59 +84,69 @@ class FileProcessor:
 
         return transformed, uploaded
 
-    def transform_incoming_history(self, messages: list, blob_name_to_url: dict, chat_id: str) -> list:
+    def transform_incoming_history(
+        self,
+        messages: list,
+        blob_name_to_url: dict,
+        chat_id: str,
+        skip_download_until_index: int = -1,
+    ) -> list:
         """
         Transform incoming chat history from CellCog.
 
         Operations:
-        1. For ALL messages: Replace blob_names with external_local_path (local paths)
-        2. For CellCog messages ONLY: Download files before replacing
+        1. For ALL messages: Replace blob_names with local paths
+        2. For CellCog messages with index > skip_download_until_index: Download files
+        3. Auto-generate download paths for files without external_local_path
 
         Args:
             messages: List of message dicts from CellCog API
             blob_name_to_url: Mapping of blob_name to URL data
             chat_id: Chat ID (for default download location)
+            skip_download_until_index: Don't download files for messages at or below this index.
+                                       Files for these messages were already downloaded in previous calls.
+                                       Default -1 means download all files.
 
         Returns:
             List of transformed messages with local paths in all SHOW_FILE tags
+            Format: [{"role": "cellcog"|"openclaw", "content": str, "created_at": str}]
         """
         transformed_messages = []
 
-        for msg in messages:
+        for msg_index, msg in enumerate(messages):
             content = msg.get("content", "")
             message_from = msg.get("messageFrom", "")
-            is_user_message = message_from != "CellCog"
+            is_cellcog_message = message_from == "CellCog"
+
+            # Only download files for messages we haven't seen yet
+            should_download = msg_index > skip_download_until_index
 
             def replace_show_file(match):
                 attrs = match.group(1)
                 blob_name = match.group(2).strip()
 
-                # Extract external_local_path attribute
+                # Extract external_local_path attribute if present
                 external_local_path_match = re.search(r'external_local_path="([^"]*)"', attrs)
 
                 if external_local_path_match:
-                    external_local_path = external_local_path_match.group(1)
-                elif blob_name in blob_name_to_url:
-                    # No external_local_path - use default download location
-                    url_data = blob_name_to_url[blob_name]
-                    filename = url_data.get("filename") or blob_name.split("/")[-1]
-                    external_local_path = str(self.default_download_dir / chat_id / filename)
+                    # User specified path via GENERATE_FILE
+                    local_path = external_local_path_match.group(1)
                 else:
-                    # No URL data available - keep as-is
-                    return match.group(0)
+                    # Auto-generate download path
+                    local_path = self._generate_auto_download_path(blob_name, chat_id)
 
-                # For CellCog messages: download the file first
-                if not is_user_message and blob_name in blob_name_to_url:
+                # Only download for CellCog messages we haven't seen yet
+                if is_cellcog_message and should_download and blob_name in blob_name_to_url:
                     url_data = blob_name_to_url[blob_name]
                     try:
-                        self._download_file(url_data["url"], external_local_path)
+                        self._download_file(url_data["url"], local_path)
                     except FileDownloadError:
                         # If download fails, still return the path
                         # (file just won't exist)
                         pass
 
-                # For ALL messages: restore the original local path
-                return f"<SHOW_FILE>{external_local_path}</SHOW_FILE>"
+                # Return with resolved local path
+                return f"<SHOW_FILE>{local_path}</SHOW_FILE>"
 
             transformed_content = re.sub(
                 r"<SHOW_FILE([^>]*)>(.*?)</SHOW_FILE>",
@@ -145,13 +157,46 @@ class FileProcessor:
 
             transformed_messages.append(
                 {
-                    "from": "user" if is_user_message else "cellcog",
+                    "role": "cellcog" if is_cellcog_message else "openclaw",
                     "content": transformed_content,
                     "created_at": msg.get("createdAt"),
                 }
             )
 
         return transformed_messages
+
+    def _generate_auto_download_path(self, blob_name: str, chat_id: str) -> str:
+        """
+        Generate download path for files without external_local_path.
+
+        Handles two blob_name formats:
+        - {chat_id}//home/app/path/to/file.ext  (double slash = from CellCog's /home/app/)
+        - {chat_id}/path/to/file.ext             (single slash = relative path)
+
+        Args:
+            blob_name: Full blob name from CellCog
+            chat_id: Chat ID for organizing downloads
+
+        Returns:
+            Local path like ~/.cellcog/chats/{chat_id}/{path}
+        """
+        if "/" not in blob_name:
+            # Malformed - use blob_name as filename
+            return str(self.default_download_dir / chat_id / blob_name)
+
+        # Remove chat_id prefix (everything up to first /)
+        path_part = blob_name.split("/", 1)[1]
+
+        # Handle double slash (//home/app/ → remove /home/app prefix)
+        if path_part.startswith("/home/app/"):
+            path_part = path_part[10:]  # Remove '/home/app/'
+        elif path_part.startswith("/"):
+            path_part = path_part[1:]  # Remove leading /
+
+        # Construct local path
+        local_path = self.default_download_dir / chat_id / path_part
+
+        return str(local_path)
 
     def _upload_file(self, local_path: str) -> str:
         """

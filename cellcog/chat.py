@@ -5,6 +5,8 @@ Handles chat creation, messaging, status, and history retrieval.
 """
 
 import time
+from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 import requests
@@ -23,24 +25,46 @@ class ChatManager:
     - Sending messages
     - Getting chat status
     - Retrieving and transforming chat history
-    - Polling for completion
+    - Streaming unseen messages with per-session tracking
+    - Efficient file downloads (only for unseen messages)
+    - Main agent guardrails (max 2 minute timeout)
     """
 
     def __init__(self, config: Config, file_processor: FileProcessor):
         self.config = config
         self.files = file_processor
+        self._chats_dir = Path("~/.cellcog/chats").expanduser()
+
+    def _validate_main_agent_timeout(self, main_agent: bool, timeout_seconds: int) -> None:
+        """
+        Validate that main agent isn't waiting too long.
+        
+        Main agent should not block for more than 2 minutes.
+        If they need longer, they should spawn a sub-session.
+        
+        Args:
+            main_agent: Whether this is the main agent calling
+            timeout_seconds: Requested timeout
+            
+        Raises:
+            ValueError: If main_agent=True and timeout_seconds > 120
+        """
+        if main_agent and timeout_seconds > 120:
+            raise ValueError(
+                "Main agent cannot wait more than 2 minutes on CellCog. "
+                "Create a sub-session using sessions_spawn to handle CellCog tasks."
+            )
 
     def create(self, prompt: str, project_id: Optional[str] = None, chat_mode: str = "agent team") -> dict:
         """
-        Create a new CellCog chat.
+        Create a new CellCog chat (without streaming).
 
-        Local files in SHOW_FILE tags are automatically uploaded.
-        GENERATE_FILE tags are passed through for CellCog agent.
+        For most use cases, use create_chat_and_stream() instead.
 
         Args:
             prompt: Initial prompt (can include SHOW_FILE, GENERATE_FILE tags)
             project_id: Optional CellCog project ID
-            chat_mode: "agent team" (deep reasoning, multi-agent) or "agent" (single agent, faster)
+            chat_mode: "agent team" (deep reasoning) or "agent" (faster)
 
         Returns:
             {
@@ -48,25 +72,17 @@ class ChatManager:
                 "status": "processing" | "ready",
                 "uploaded_files": [{"local": str, "blob": str}]
             }
-
-        Raises:
-            PaymentRequiredError: If account needs credits
-            AuthenticationError: If API key is invalid
-            APIError: For other API errors
         """
         self.config.require_configured()
 
-        # Map user-friendly mode names to API values
         mode_mapping = {
-            "agent team": "agent_in_the_loop",  # Multi-agent team for deep reasoning
-            "agent": "human_in_the_loop",        # Single agent for step-by-step
+            "agent team": "agent_in_the_loop",
+            "agent": "human_in_the_loop",
         }
         api_chat_mode = mode_mapping.get(chat_mode, chat_mode)
 
-        # Transform outgoing message - upload local files
         transformed, uploaded = self.files.transform_outgoing(prompt)
 
-        # Create chat
         data = {"message": transformed, "chat_mode": api_chat_mode}
         if project_id:
             data["project_id"] = project_id
@@ -79,9 +95,77 @@ class ChatManager:
             "uploaded_files": uploaded,
         }
 
+    def create_chat_and_stream(
+        self,
+        prompt: str,
+        session_id: str,
+        main_agent: bool,
+        project_id: Optional[str] = None,
+        chat_mode: str = "agent team",
+        timeout_seconds: int = 600,
+        poll_interval: int = 10,
+    ) -> dict:
+        """
+        Create a new CellCog chat and stream responses until completion.
+
+        This is the PRIMARY method for starting CellCog work. It:
+        1. Creates the chat
+        2. Immediately prints the chat_id
+        3. Streams all messages as they arrive
+
+        Args:
+            prompt: Initial prompt (supports SHOW_FILE, GENERATE_FILE)
+            session_id: Your OpenClaw session ID
+            main_agent: True if calling from main session.
+                       If True, timeout_seconds must be <= 120.
+            project_id: Optional CellCog project ID
+            chat_mode: "agent team" (deep reasoning) or "agent" (faster)
+            timeout_seconds: Max wait time (default 10 min)
+            poll_interval: Seconds between checks (default 10)
+
+        Returns:
+            {
+                "chat_id": str,
+                "status": "completed" | "timeout" | "error",
+                "messages_delivered": int,
+                "uploaded_files": [...],
+                "elapsed_seconds": float,
+                "error_type": str | None
+            }
+
+        Raises:
+            ValueError: If main_agent=True and timeout_seconds > 120
+        """
+        # Validate guardrail
+        self._validate_main_agent_timeout(main_agent, timeout_seconds)
+
+        # Create the chat
+        create_result = self.create(prompt, project_id, chat_mode)
+        chat_id = create_result["chat_id"]
+
+        # Immediately print chat_id so caller knows it
+        print(f"Chat created: {chat_id}")
+        print()
+
+        # Stream responses
+        stream_result = self.stream_unseen_messages_and_wait_for_completion(
+            chat_id, session_id, main_agent, timeout_seconds, poll_interval
+        )
+
+        return {
+            "chat_id": chat_id,
+            "status": stream_result["status"],
+            "messages_delivered": stream_result["messages_delivered"],
+            "uploaded_files": create_result.get("uploaded_files", []),
+            "elapsed_seconds": stream_result["elapsed_seconds"],
+            "error_type": stream_result.get("error_type"),
+        }
+
     def send_message(self, chat_id: str, message: str) -> dict:
         """
-        Send a message to an existing chat.
+        Send a message to existing chat (without streaming).
+
+        For most use cases, use send_message_and_stream() instead.
 
         Args:
             chat_id: The chat to send to
@@ -89,20 +173,67 @@ class ChatManager:
 
         Returns:
             {"status": "sent", "uploaded_files": [...]}
-
-        Raises:
-            ChatNotFoundError: If chat doesn't exist
-            PaymentRequiredError: If account needs credits
-            AuthenticationError: If API key is invalid
         """
         self.config.require_configured()
 
-        # Transform outgoing message - upload local files
         transformed, uploaded = self.files.transform_outgoing(message)
-
         self._request("POST", f"/cellcog/chat/{chat_id}/messages", {"message": transformed})
 
         return {"status": "sent", "uploaded_files": uploaded}
+
+    def send_message_and_stream(
+        self,
+        chat_id: str,
+        message: str,
+        session_id: str,
+        main_agent: bool,
+        timeout_seconds: int = 600,
+        poll_interval: int = 10,
+    ) -> dict:
+        """
+        Send a message and stream responses until completion.
+
+        This is the PRIMARY method for continuing CellCog conversations.
+
+        Args:
+            chat_id: The chat to send to
+            message: Your message (supports SHOW_FILE, GENERATE_FILE)
+            session_id: Your OpenClaw session ID
+            main_agent: True if calling from main session.
+                       If True, timeout_seconds must be <= 120.
+            timeout_seconds: Max wait time (default 10 min)
+            poll_interval: Seconds between checks (default 10)
+
+        Returns:
+            {
+                "status": "completed" | "timeout" | "error",
+                "messages_delivered": int,
+                "uploaded_files": [...],
+                "elapsed_seconds": float,
+                "error_type": str | None
+            }
+
+        Raises:
+            ValueError: If main_agent=True and timeout_seconds > 120
+        """
+        # Validate guardrail
+        self._validate_main_agent_timeout(main_agent, timeout_seconds)
+
+        # Send the message
+        send_result = self.send_message(chat_id, message)
+
+        # Stream responses
+        stream_result = self.stream_unseen_messages_and_wait_for_completion(
+            chat_id, session_id, main_agent, timeout_seconds, poll_interval
+        )
+
+        return {
+            "status": stream_result["status"],
+            "messages_delivered": stream_result["messages_delivered"],
+            "uploaded_files": send_result.get("uploaded_files", []),
+            "elapsed_seconds": stream_result["elapsed_seconds"],
+            "error_type": stream_result.get("error_type"),
+        }
 
     def get_status(self, chat_id: str) -> dict:
         """
@@ -116,11 +247,8 @@ class ChatManager:
                 "status": "processing" | "ready" | "error",
                 "name": str,
                 "is_operating": bool,
-                "error_type": str | None  # "security_threat" or "out_of_memory"
+                "error_type": str | None
             }
-
-        Raises:
-            ChatNotFoundError: If chat doesn't exist
         """
         self.config.require_configured()
 
@@ -141,65 +269,48 @@ class ChatManager:
             "error_type": error_type,
         }
 
-    def get_history(self, chat_id: str) -> dict:
+    def get_history(self, chat_id: str, session_id: str) -> dict:
         """
-        Get chat history with all files downloaded and paths resolved.
+        Get full chat history. FALLBACK method for memory recovery.
 
-        All SHOW_FILE tags in returned messages contain local paths.
-        Files from CellCog are automatically downloaded.
+        Use only when memory compaction lost information.
+        For normal operation, use streaming methods instead.
 
         Args:
             chat_id: The chat to retrieve
+            session_id: Your OpenClaw session ID (for efficient file downloads)
 
         Returns:
             {
                 "chat_id": str,
-                "messages": [
-                    {"from": "user"|"cellcog", "content": str, "created_at": str}
-                ],
-                "created_at": str,
-                "is_complete": bool  # False if messages still queued
+                "messages": [{"role": str, "content": str, "created_at": str}],
+                "created_at": str
             }
-
-        Raises:
-            ChatNotFoundError: If chat doesn't exist
         """
         self.config.require_configured()
 
         resp = self._request("GET", f"/cellcog/chat/{chat_id}/history")
 
-        # Transform incoming messages - download files, replace blob_names with local paths
+        seen_index = self._load_seen_index(chat_id, session_id)
+
         messages = self.files.transform_incoming_history(
             resp["messages"],
             resp.get("blob_name_to_url", {}),
             chat_id,
+            skip_download_until_index=seen_index,
         )
+
+        if messages:
+            self._save_seen_index(chat_id, session_id, len(messages) - 1)
 
         return {
             "chat_id": resp["chat_id"],
             "messages": messages,
             "created_at": resp["createdAt"],
-            "is_complete": not resp.get("letterbox_messages"),
         }
 
     def list_chats(self, limit: int = 20) -> list:
-        """
-        List recent chats.
-
-        Args:
-            limit: Maximum number of chats to return (1-100)
-
-        Returns:
-            [
-                {
-                    "chat_id": str,
-                    "name": str,
-                    "status": "processing" | "ready",
-                    "created_at": str | None,
-                    "updated_at": str | None
-                }
-            ]
-        """
+        """List recent chats."""
         self.config.require_configured()
 
         resp = self._request("GET", f"/cellcog/chats?page=1&page_size={min(limit, 100)}")
@@ -215,33 +326,45 @@ class ChatManager:
             for c in resp["chats"]
         ]
 
-    def wait_for_completion(
+    def stream_unseen_messages_and_wait_for_completion(
         self,
         chat_id: str,
+        session_id: str,
+        main_agent: bool,
         timeout_seconds: int = 600,
         poll_interval: int = 10,
-        timeout: int = None,  # Backwards compatibility alias
     ) -> dict:
-        # Handle backwards compatibility
-        if timeout is not None:
-            timeout_seconds = timeout
         """
-        Poll until chat completes or timeout.
+        Stream unseen messages and wait for completion.
+
+        Messages are printed as they arrive in standard format.
+        Only downloads files for messages you haven't seen.
 
         Args:
-            chat_id: The chat to wait for
-            timeout_seconds: Max wait time (default 10 minutes)
-            poll_interval: Seconds between status checks (default 10)
+            chat_id: The CellCog chat to watch
+            session_id: Your OpenClaw session ID
+            main_agent: True if calling from main session.
+                       If True, timeout_seconds must be <= 120.
+            timeout_seconds: Max wait time (default 10 min)
+            poll_interval: Seconds between checks (default 10)
 
         Returns:
             {
                 "status": "completed" | "timeout" | "error",
-                "history": dict | None,  # Same as get_history() if completed
+                "messages_delivered": int,
                 "elapsed_seconds": float,
-                "error_type": str | None  # If status is "error"
+                "error_type": str | None
             }
+
+        Raises:
+            ValueError: If main_agent=True and timeout_seconds > 120
         """
+        # Validate guardrail
+        self._validate_main_agent_timeout(main_agent, timeout_seconds)
+
         start = time.time()
+        delivered_count = 0
+        last_delivered_index = self._load_seen_index(chat_id, session_id)
 
         while time.time() - start < timeout_seconds:
             status = self.get_status(chat_id)
@@ -249,15 +372,53 @@ class ChatManager:
             if status["error_type"]:
                 return {
                     "status": "error",
-                    "history": None,
+                    "messages_delivered": delivered_count,
                     "elapsed_seconds": time.time() - start,
                     "error_type": status["error_type"],
                 }
 
-            if not status["is_operating"]:
+            is_operating = status["is_operating"]
+
+            history = self._request("GET", f"/cellcog/chat/{chat_id}/history")
+
+            messages = self.files.transform_incoming_history(
+                history["messages"],
+                history.get("blob_name_to_url", {}),
+                chat_id,
+                skip_download_until_index=last_delivered_index,
+            )
+
+            last_cellcog_idx = -1
+            for i, msg in enumerate(messages):
+                if msg["role"] == "cellcog":
+                    last_cellcog_idx = i
+
+            for i, msg in enumerate(messages):
+                if i <= last_delivered_index:
+                    continue
+
+                role = msg["role"]
+                timestamp = self._format_timestamp(msg["created_at"])
+
+                print(f"<MESSAGE FROM {role} on Chat {chat_id} at {timestamp}>")
+                print(msg["content"])
+                print("<MESSAGE END>")
+
+                if not is_operating and role == "cellcog" and i == last_cellcog_idx:
+                    print(
+                        f"[CellCog stopped operating on Chat {chat_id} - waiting for response via send_message_and_stream()]"
+                    )
+
+                print()
+                delivered_count += 1
+
+                last_delivered_index = i
+                self._save_seen_index(chat_id, session_id, last_delivered_index)
+
+            if not is_operating:
                 return {
                     "status": "completed",
-                    "history": self.get_history(chat_id),
+                    "messages_delivered": delivered_count,
                     "elapsed_seconds": time.time() - start,
                     "error_type": None,
                 }
@@ -266,26 +427,47 @@ class ChatManager:
 
         return {
             "status": "timeout",
-            "history": None,
+            "messages_delivered": delivered_count,
             "elapsed_seconds": timeout_seconds,
             "error_type": None,
         }
 
+    def _get_seen_indices_dir(self, chat_id: str) -> Path:
+        return self._chats_dir / chat_id / ".seen_indices"
+
+    def _get_seen_index_path(self, chat_id: str, session_id: str) -> Path:
+        return self._get_seen_indices_dir(chat_id) / session_id
+
+    def _load_seen_index(self, chat_id: str, session_id: str) -> int:
+        index_path = self._get_seen_index_path(chat_id, session_id)
+        try:
+            if index_path.exists():
+                return int(index_path.read_text().strip())
+        except (ValueError, IOError):
+            pass
+        return -1
+
+    def _save_seen_index(self, chat_id: str, session_id: str, index: int) -> None:
+        index_path = self._get_seen_index_path(chat_id, session_id)
+        try:
+            index_path.parent.mkdir(parents=True, exist_ok=True)
+            index_path.write_text(str(index))
+        except IOError:
+            pass
+
+    def _format_timestamp(self, iso_timestamp: str) -> str:
+        if not iso_timestamp:
+            return "unknown time"
+        try:
+            if iso_timestamp.endswith("Z"):
+                iso_timestamp = iso_timestamp[:-1] + "+00:00"
+            dt = datetime.fromisoformat(iso_timestamp)
+            return dt.strftime("%Y-%m-%d %H:%M UTC")
+        except Exception:
+            return iso_timestamp
+
     def check_pending(self) -> list:
-        """
-        Check all user's chats and return recently completed ones.
-
-        Useful for OpenClaw's heartbeat loop to find completed work.
-
-        Returns:
-            [
-                {
-                    "chat_id": str,
-                    "name": str,
-                    "last_message_preview": str,  # Truncated last message
-                }
-            ]
-        """
+        """Check all chats and return recently completed ones."""
         self.config.require_configured()
 
         chats = self.list_chats(limit=20)
@@ -293,46 +475,30 @@ class ChatManager:
 
         for chat in chats:
             if chat["status"] == "ready":
-                # Get last message preview
                 try:
-                    history = self.get_history(chat["chat_id"])
-                    if history["messages"]:
-                        last_msg = history["messages"][-1]
+                    resp = self._request("GET", f"/cellcog/chat/{chat['chat_id']}/history")
+                    messages = self.files.transform_incoming_history(
+                        resp["messages"],
+                        resp.get("blob_name_to_url", {}),
+                        chat["chat_id"],
+                        skip_download_until_index=len(resp["messages"]),
+                    )
+                    if messages:
+                        last_msg = messages[-1]
                         preview = last_msg["content"][:200]
                         if len(last_msg["content"]) > 200:
                             preview += "..."
-
-                        completed.append(
-                            {
-                                "chat_id": chat["chat_id"],
-                                "name": chat["name"],
-                                "last_message_preview": preview,
-                            }
-                        )
+                        completed.append({
+                            "chat_id": chat["chat_id"],
+                            "name": chat["name"],
+                            "last_message_preview": preview,
+                        })
                 except Exception:
-                    # Skip if we can't get history
                     pass
 
         return completed
 
     def _request(self, method: str, path: str, data: Optional[dict] = None) -> dict:
-        """
-        Make API request with error handling.
-
-        Args:
-            method: HTTP method
-            path: API path (e.g., "/cellcog/chat/new")
-            data: Optional request body
-
-        Returns:
-            Response JSON
-
-        Raises:
-            PaymentRequiredError: If 402 response
-            AuthenticationError: If 401 response
-            ChatNotFoundError: If 404 response
-            APIError: For other errors
-        """
         try:
             resp = requests.request(
                 method=method,
