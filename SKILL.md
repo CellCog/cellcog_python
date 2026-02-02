@@ -567,60 +567,50 @@ Quick status check — what's your progress? Haven't heard from you in a while.
 
 For jobs expected to take >2 minutes, use `sessions_spawn` to keep your main session responsive.
 
-### Basic Pattern
+### sessions_spawn Task Template
 
 ```python
 sessions_spawn(
     task="""
-**User Request:** [original request]
+**Skill:** CellCog
+**Chat Mode:** agent team
+
+**User Request:** Create a comprehensive market analysis report for electric vehicles in 2026.
 
 **CellCog Prompt:**
-[your prompt with optional SHOW_FILE/GENERATE_FILE tags]
+Research the electric vehicle market in 2026.
+Include market size, top manufacturers, technology trends, and growth projections.
 
-**Clarifying Questions:** Answer if you have context, escalate if not.
-**Error Handling:** Revival messages, status checks as needed.
-**After completion:** Confirm success, list files, summarize findings.
+Save comprehensive report to:
+<GENERATE_FILE>/home/node/outputs/ev_market_2026.pdf</GENERATE_FILE>
+
+**Clarifying Question Handling:**
+- If you have context to answer → Answer and let CellCog continue
+- If you need my input → Relay question to me, wait, then answer CellCog
+
+**Error Handling:**
+- Chat completes with no response → send revival message, retry once
+- Chat runs much longer than expected → send status check
+- Two attempts fail → report failure and suggest starting fresh
+
+**After completion:**
+1. Confirm job completed
+2. List all generated files
+3. Summarize findings
     """,
-    label="cellcog-job-name",
-    runTimeoutSeconds=7200,
-    chat_mode="agent team"  # or "agent"
+    label="cellcog-ev-report",
+    runTimeoutSeconds=7200  # 2 hours for complex research
 )
 ```
 
 Then immediately tell your human:
 ```
-I've started [task] with CellCog.
-Expected time: [estimate based on complexity]
+I've started your EV market report with CellCog.
+Expected time: 15-45 minutes for comprehensive research.
 I'll notify you when ready. What else can I help with?
 ```
 
 **Don't make them wait in silence.**
-
-### Sub-Agent Task Template
-
-```
-**User Request:** [original request in plain language]
-
-**Chat Mode:** agent [or: agent team]
-
-**CellCog Prompt:**
-[the actual prompt]
-
-**Clarifying Questions:**
-- Answer if you have enough context
-- Escalate if you need my input
-
-**Error Handling:**
-- Chat completes with no response → revival message, retry once
-- Chat runs much longer than expected → status check
-- Two attempts fail → report failure, suggest starting fresh
-
-**After completion:**
-1. Confirm job completed
-2. List all files (check SHOW_FILE tags)
-3. Summarize findings
-4. Offer next steps
-```
 
 ---
 
