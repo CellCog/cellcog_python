@@ -25,6 +25,14 @@ class CellCogClient:
     **Always use sessions_spawn for CellCog tasks.** Main agent should
     not block on CellCog for more than 2 minutes.
 
+    Setup:
+        When your human provides their API key:
+        
+        client = CellCogClient()
+        client.set_api_key("sk_...")  # SDK handles file storage
+        
+        Get API key from: https://cellcog.ai/profile?tab=api-keys
+
     Primary Methods:
         create_chat_and_stream() - Create new chat + stream responses
         send_message_and_stream() - Send to existing chat + stream responses
@@ -34,11 +42,14 @@ class CellCogClient:
 
         client = CellCogClient()
 
-        # Create chat and stream (prints chat_id first, then messages)
+        # Configure with API key
+        client.set_api_key("sk_...")
+
+        # Create chat and stream
         result = client.create_chat_and_stream(
             prompt="Research quantum computing advances",
             session_id="your-session-id",
-            main_agent=False,  # Set True only if you're the main agent
+            main_agent=False,
             timeout_seconds=3600
         )
 
@@ -57,31 +68,42 @@ class CellCogClient:
 
         Args:
             config_path: Path to config file. Defaults to ~/.openclaw/cellcog.json
-                        Can also use CELLCOG_API_KEY environment variable.
         """
         self.config = Config(config_path)
         self._auth = AuthManager(self.config)
         self._files = FileProcessor(self.config)
         self._chat = ChatManager(self.config, self._files)
 
-    # ==================== Account Setup ====================
+    # ==================== Configuration ====================
 
-    def setup_account(self, email: str, password: str) -> dict:
+    def set_api_key(self, api_key: str) -> dict:
         """
-        Create a new CellCog account or sign in to existing one.
-
+        Store API key provided by human.
+        
+        Simple method for agents - you don't need to know about file paths.
+        Just pass the key and the SDK handles everything (creates directory,
+        creates config file, sets permissions).
+        
         Args:
-            email: Email for the account
-            password: Password (min 6 characters)
-
+            api_key: API key from https://cellcog.ai/profile?tab=api-keys
+            
         Returns:
-            {"status": "success", "email": str, "message": str}
+            {"status": "success", "message": "API key configured"}
+            
+        Example:
+            # Human says: "My API key is sk_..."
+            result = client.set_api_key("sk_...")
+            print(result["message"])  # "API key configured"
         """
-        return self._auth.setup_account(email, password)
+        self.config.api_key = api_key
+        return {
+            "status": "success",
+            "message": "API key configured"
+        }
 
     def get_account_status(self) -> dict:
         """
-        Check if SDK is configured with valid credentials.
+        Check if SDK is configured with valid API key.
 
         Returns:
             {"configured": bool, "email": str | None, "api_key_prefix": str | None}

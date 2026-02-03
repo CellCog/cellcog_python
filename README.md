@@ -1,5 +1,7 @@
 # CellCog Python SDK
 
+CellCog: Any-to-Any for Agents - Your sub-agent for quality work.
+
 Create complex multimodal content through AI orchestration - research reports, interactive apps, videos, images, and documents.
 
 ## Installation
@@ -15,25 +17,41 @@ from cellcog import CellCogClient
 
 client = CellCogClient()
 
-# First-time setup (creates account, stores API key)
-client.setup_account("your.email@example.com", "your-password")
-
-# Create a chat
-result = client.create_chat("Research Tesla Q4 2025 earnings and create an analysis report")
-print(f"Chat ID: {result['chat_id']}")
-
-# Wait for completion (typically 30 seconds to several minutes)
-final = client.wait_for_completion(result["chat_id"])
-
-# View results
-if final["status"] == "completed":
-    for msg in final["history"]["messages"]:
-        print(f"{msg['from']}: {msg['content'][:200]}...")
+# Check if configured
+status = client.get_account_status()
+if not status["configured"]:
+    print("Configure CellCog by adding your API key to ~/.openclaw/cellcog.json")
+    print("Get your key from: https://cellcog.ai/profile?tab=api-keys")
+else:
+    # Create chat and stream responses
+    result = client.create_chat_and_stream(
+        prompt="Research Tesla Q4 2025 earnings",
+        session_id="your-session-id",
+        main_agent=False,
+        timeout_seconds=3600
+    )
+    
+    print(f"Completed: {result['status']}")
 ```
+
+## Configuration
+
+Create `~/.openclaw/cellcog.json` with your API key:
+
+```json
+{
+  "api_key": "sk_..."
+}
+```
+
+**Get your API key:**
+1. Create account: https://cellcog.ai/signup
+2. Add payment: https://cellcog.ai/profile?tab=billing
+3. Get API key: https://cellcog.ai/profile?tab=api-keys
 
 ## Features
 
-- **Research Reports**: Deep analysis with citations and insights
+- **Research Reports**: Deep analysis with citations
 - **Interactive Apps**: HTML dashboards and visualizations
 - **Videos**: Marketing videos, explainers with AI voiceovers
 - **Images**: Generated images, infographics, brand assets
@@ -41,95 +59,79 @@ if final["status"] == "completed":
 
 ## File Handling
 
-The SDK automatically handles file uploads and downloads. You only work with local paths.
+The SDK automatically handles file uploads and downloads.
 
 ### Send Files to CellCog
 
 ```python
-# Local files in SHOW_FILE tags are automatically uploaded
-result = client.create_chat('''
-    Analyze this financial data:
-    <SHOW_FILE>/home/user/data/q4_financials.xlsx</SHOW_FILE>
-    
-    Compare with industry benchmarks.
-''')
+# Files in SHOW_FILE tags are automatically uploaded
+result = client.create_chat_and_stream(
+    prompt='''
+    Analyze this data:
+    <SHOW_FILE>/home/user/data/sales.csv</SHOW_FILE>
+    ''',
+    session_id="your-session-id",
+    main_agent=False
+)
 ```
 
 ### Request Output at Specific Locations
 
 ```python
-# Use GENERATE_FILE to specify where you want output files
-result = client.create_chat('''
-    Analyze the data:
-    <SHOW_FILE>/home/user/data/sales.csv</SHOW_FILE>
-    
-    Create:
-    1. PDF report: <GENERATE_FILE>/home/user/reports/analysis.pdf</GENERATE_FILE>
-    2. Chart image: <GENERATE_FILE>/home/user/images/chart.png</GENERATE_FILE>
-''')
+# Use GENERATE_FILE to specify output paths
+result = client.create_chat_and_stream(
+    prompt='''
+    Create analysis report:
+    <GENERATE_FILE>/home/user/reports/analysis.pdf</GENERATE_FILE>
+    ''',
+    session_id="your-session-id",
+    main_agent=False
+)
 
-# Wait for completion - files are automatically downloaded
-final = client.wait_for_completion(result["chat_id"])
-
-# Files now exist at the paths you specified!
-```
-
-## Configuration
-
-The SDK stores credentials in `~/.openclaw/cellcog.json` by default.
-
-You can also use environment variables:
-
-```bash
-export CELLCOG_API_KEY="sk_..."
-export CELLCOG_EMAIL="your@email.com"
+# Files auto-download to specified paths
+# Or to ~/.cellcog/chats/{chat_id}/... if no GENERATE_FILE specified
 ```
 
 ## API Reference
 
-### CellCogClient
+### Primary Methods
 
 ```python
-client = CellCogClient(config_path=None)  # Optional custom config path
-```
+# Create chat and stream responses
+result = client.create_chat_and_stream(
+    prompt="Your task...",
+    session_id="your-session-id",
+    main_agent=False,
+    chat_mode="agent team",  # or "agent"
+    timeout_seconds=3600
+)
 
-#### Account Management
+# Send message and stream responses
+result = client.send_message_and_stream(
+    chat_id="abc123",
+    message="Your message...",
+    session_id="your-session-id",
+    main_agent=False
+)
 
-```python
-# Create account or sign in
-client.setup_account(email, password)
-
-# Check configuration status
+# Check configuration
 status = client.get_account_status()
-# {"configured": True, "email": "...", "api_key_prefix": "sk_..."}
+# {"configured": bool, "email": str | None, "api_key_prefix": str | None}
 ```
 
-#### Chat Operations
+### Advanced Methods
 
 ```python
-# Create a new chat
-result = client.create_chat(prompt, project_id=None)
-# {"chat_id": "...", "status": "processing", "uploaded_files": [...]}
+# Stream without sending new message
+client.stream_unseen_messages_and_wait_for_completion(chat_id, session_id, main_agent)
 
-# Send follow-up message
-client.send_message(chat_id, message)
-
-# Check status (non-blocking)
-status = client.get_status(chat_id)
-# {"status": "processing"|"ready"|"error", "name": "...", "is_operating": bool}
-
-# Get full history with files downloaded
-history = client.get_history(chat_id)
-# {"chat_id": "...", "messages": [...], "is_complete": bool}
+# Get full history (fallback for memory recovery)
+history = client.get_history(chat_id, session_id)
 
 # List recent chats
 chats = client.list_chats(limit=20)
 
-# Wait for completion (blocking)
-final = client.wait_for_completion(chat_id, timeout_seconds=600, poll_interval=10)
-# {"status": "completed"|"timeout"|"error", "history": {...}}
-
-# Check for completed chats (for heartbeat loops)
+# Check for completed chats
 completed = client.check_pending_chats()
 ```
 
@@ -139,34 +141,30 @@ completed = client.check_pending_chats()
 from cellcog import (
     CellCogClient,
     PaymentRequiredError,
-    AuthenticationError,
     ConfigurationError,
 )
 
 client = CellCogClient()
 
 try:
-    result = client.create_chat("Create a marketing video...")
+    result = client.create_chat_and_stream(...)
 except PaymentRequiredError as e:
-    print(f"Need credits. Visit: {e.subscription_url}")
-    print(f"Account: {e.email}")
-except AuthenticationError:
-    print("Invalid API key - run setup_account() or check CELLCOG_API_KEY")
-except ConfigurationError:
-    print("SDK not configured - run setup_account() first")
+    print(f"Add credits at: {e.subscription_url}")
+except ConfigurationError as e:
+    print("Add API key to ~/.openclaw/cellcog.json")
 ```
 
 ## OpenClaw Integration
 
-This SDK is designed to work seamlessly with [OpenClaw](https://openclaw.ai) as a skill.
+This SDK is designed for [OpenClaw](https://openclaw.ai) agents.
 
-See the [OpenClaw skill documentation](https://github.com/CellCog/cellcog_python/blob/main/SKILL.md) for integration details.
+See [SKILL.md](https://github.com/CellCog/cellcog_python/blob/main/SKILL.md) for complete integration guide.
 
 ## Links
 
 - [CellCog Website](https://cellcog.ai)
-- [API Documentation](https://cellcog.ai/developer/docs)
 - [GitHub Repository](https://github.com/CellCog/cellcog_python)
+- [Get API Key](https://cellcog.ai/profile?tab=api-keys)
 
 ## License
 

@@ -512,7 +512,7 @@ class ChatManager:
 
         if resp.status_code == 402:
             raise PaymentRequiredError(
-                subscription_url="https://cellcog.ai/billing",
+                subscription_url="https://cellcog.ai/profile?tab=billing",
                 email=self.config.email or "unknown",
             )
 

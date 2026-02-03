@@ -18,15 +18,10 @@ class Config:
 
     Stores and retrieves API credentials from a JSON file.
     Default location: ~/.openclaw/cellcog.json
-
-    Can also read from environment variables:
-    - CELLCOG_API_KEY
-    - CELLCOG_EMAIL
     """
 
     DEFAULT_CONFIG_PATH = "~/.openclaw/cellcog.json"
     API_BASE_URL = "https://cellcog.ai/api"
-    FIREBASE_API_KEY = "AIzaSyDrVR2rktn3xPbThNJNDf6mZTtESF5XMgA"
 
     def __init__(self, config_path: Optional[str] = None):
         """
@@ -58,8 +53,8 @@ class Config:
 
     @property
     def api_key(self) -> Optional[str]:
-        """Get API key from environment or config file."""
-        return os.environ.get("CELLCOG_API_KEY") or self._config_data.get("api_key")
+        """Get API key from config file (preferred) or environment variable (fallback)."""
+        return self._config_data.get("api_key") or os.environ.get("CELLCOG_API_KEY")
 
     @api_key.setter
     def api_key(self, value: str) -> None:
@@ -69,8 +64,8 @@ class Config:
 
     @property
     def email(self) -> Optional[str]:
-        """Get email from environment or config file."""
-        return os.environ.get("CELLCOG_EMAIL") or self._config_data.get("email")
+        """Get email from config file or environment (for display purposes only)."""
+        return self._config_data.get("email") or os.environ.get("CELLCOG_EMAIL")
 
     @email.setter
     def email(self, value: str) -> None:
@@ -92,10 +87,12 @@ class Config:
         """Raise error if SDK is not configured."""
         if not self.is_configured:
             raise ConfigurationError(
-                "CellCog SDK not configured. Either:\n"
-                "  1. Run client.setup_account(email, password) to create an account\n"
-                "  2. Set CELLCOG_API_KEY environment variable\n"
-                "  3. Add api_key to ~/.openclaw/cellcog.json"
+                "CellCog SDK not configured.\n\n"
+                "Add your API key to ~/.openclaw/cellcog.json:\n"
+                "{\n"
+                '  "api_key": "sk_..."\n'
+                "}\n\n"
+                "Get your API key from: https://cellcog.ai/profile?tab=api-keys"
             )
 
     def clear(self) -> None:
