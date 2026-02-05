@@ -1,6 +1,9 @@
 ---
 name: image-cog
 description: AI image generation powered by CellCog. Create images, edit photos, consistent characters, product photography, reference-based images, sets of images, style transfer. Professional image creation with AI.
+metadata:
+  openclaw:
+    emoji: "🎨"
 ---
 
 # Image Cog - AI Image Generation Powered by CellCog
@@ -17,16 +20,18 @@ This skill requires the CellCog mothership skill for SDK setup and API calls.
 clawhub install cellcog
 ```
 
-**Read the cellcog skill first** for SDK setup and the `sessions_spawn` pattern. This skill shows you what's possible.
+**Read the cellcog skill first** for SDK setup. This skill shows you what's possible.
 
-**Quick pattern:**
+**Quick pattern (v1.0+):**
 ```python
-client.create_chat_and_stream(
+# Fire-and-forget - returns immediately
+result = client.create_chat(
     prompt="[your image request]",
-    session_id=session_id,
-    main_agent=False,
-    chat_mode="agent team"  # Recommended for complex images
+    notify_session_key="agent:main:main",
+    task_label="image-task",
+    chat_mode="agent"  # Use "agent" for simple images, "agent team" for complex
 )
+# Daemon notifies you when complete - do NOT poll
 ```
 
 ---

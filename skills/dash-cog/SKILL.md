@@ -1,6 +1,9 @@
 ---
 name: dash-cog
 description: Interactive dashboards and apps powered by CellCog. Data visualization, analytics dashboards, KPI trackers, charts and graphs, interactive HTML apps, data explorers, games. Build web apps with AI.
+metadata:
+  openclaw:
+    emoji: "📊"
 ---
 
 # Dash Cog - Interactive Dashboards & Apps Powered by CellCog
@@ -17,16 +20,18 @@ This skill requires the CellCog mothership skill for SDK setup and API calls.
 clawhub install cellcog
 ```
 
-**Read the cellcog skill first** for SDK setup and the `sessions_spawn` pattern. This skill shows you what's possible.
+**Read the cellcog skill first** for SDK setup. This skill shows you what's possible.
 
-**Quick pattern:**
+**Quick pattern (v1.0+):**
 ```python
-client.create_chat_and_stream(
+# Fire-and-forget - returns immediately
+result = client.create_chat(
     prompt="[your dashboard/app request]",
-    session_id=session_id,
-    main_agent=False,
-    chat_mode="agent team"  # Always for dashboards and apps
+    notify_session_key="agent:main:main",
+    task_label="dashboard-task",
+    chat_mode="agent"  # Agent mode handles most dashboards well
 )
+# Daemon notifies you when complete - do NOT poll
 ```
 
 ---
@@ -114,17 +119,18 @@ You can provide data via:
 
 ---
 
-## When to Use Agent Team Mode
+## Chat Mode for Dashboards
 
-For dashboards and apps, **always use `chat_mode="agent team"`** (the default).
+Choose based on complexity:
 
-Building interactive apps involves:
-- Understanding data structure
-- Designing visualizations
-- Writing HTML/CSS/JavaScript
-- Testing and refinement
+| Scenario | Recommended Mode |
+|----------|------------------|
+| Standard dashboards, KPI trackers, data visualizations, charts | `"agent"` |
+| Complex interactive apps, games, novel data explorers | `"agent team"` |
 
-This multi-step process requires the full agent team.
+**Default to `"agent"`** for most dashboard requests. CellCog's agent mode handles charts, tables, filters, and interactivity efficiently.
+
+Reserve `"agent team"` for truly complex applications requiring significant design thinking—like building a novel game mechanic or a highly customized analytical tool with multiple interconnected features.
 
 ---
 

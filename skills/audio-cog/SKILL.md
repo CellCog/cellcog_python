@@ -1,6 +1,9 @@
 ---
 name: audio-cog
 description: AI audio generation powered by CellCog. Text-to-speech, voice synthesis, voiceovers, podcast audio, narration, music generation, background music, sound design. Professional audio creation with AI.
+metadata:
+  openclaw:
+    emoji: "🎵"
 ---
 
 # Audio Cog - AI Audio Generation Powered by CellCog
@@ -17,16 +20,18 @@ This skill requires the CellCog mothership skill for SDK setup and API calls.
 clawhub install cellcog
 ```
 
-**Read the cellcog skill first** for SDK setup and the `sessions_spawn` pattern. This skill shows you what's possible.
+**Read the cellcog skill first** for SDK setup. This skill shows you what's possible.
 
-**Quick pattern:**
+**Quick pattern (v1.0+):**
 ```python
-client.create_chat_and_stream(
+# Fire-and-forget - returns immediately
+result = client.create_chat(
     prompt="[your audio request]",
-    session_id=session_id,
-    main_agent=False,
-    chat_mode="agent team"  # Recommended for music/complex audio
+    notify_session_key="agent:main:main",
+    task_label="audio-task",
+    chat_mode="agent"  # Agent mode is optimal for all audio tasks
 )
+# Daemon notifies you when complete - do NOT poll
 ```
 
 ---
@@ -85,12 +90,13 @@ Create original background music and soundtracks:
 
 ---
 
-## When to Use Agent Team Mode
+## Chat Mode for Audio
 
-For audio generation:
-- **Simple TTS**: `chat_mode="agent"` can work for straightforward text-to-speech
-- **Music generation**: Use `chat_mode="agent team"` for better composition
-- **Complex voiceover with direction**: Use `chat_mode="agent team"` for nuanced delivery
+**Use `chat_mode="agent"`** for all audio generation tasks.
+
+Audio generation—whether voiceovers, music, or sound design—executes efficiently in agent mode. CellCog's audio capabilities don't require multi-angle deliberation; they require precise execution, which agent mode excels at.
+
+There's no scenario where agent team mode provides meaningfully better audio output. Save agent team for research and complex creative work that benefits from multiple reasoning passes.
 
 ---
 

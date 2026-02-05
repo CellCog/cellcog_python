@@ -503,7 +503,7 @@ class ChatManager:
             resp = requests.request(
                 method=method,
                 url=f"{self.config.api_base_url}{path}",
-                headers={"X-API-Key": self.config.api_key},
+                headers=self.config.get_request_headers(),
                 json=data,
                 timeout=60,
             )
@@ -521,6 +521,21 @@ class ChatManager:
 
         if resp.status_code == 404:
             raise ChatNotFoundError(f"Chat not found: {path}")
+        
+        if resp.status_code == 426:
+            # SDK upgrade required
+            try:
+                error_data = resp.json()
+                from .exceptions import SDKUpgradeRequiredError
+                raise SDKUpgradeRequiredError(
+                    current_version=error_data.get("current_version", "unknown"),
+                    minimum_version=error_data.get("minimum_version", "unknown"),
+                    upgrade_instructions=error_data.get("upgrade_instructions", 
+                        "Please upgrade your cellcog skill and SDK version mentioned in the updated skill")
+                )
+            except ValueError:
+                # JSON parsing failed
+                raise APIError(426, "SDK upgrade required")
 
         if resp.status_code >= 400:
             try:

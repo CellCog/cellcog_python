@@ -1,6 +1,9 @@
 ---
 name: slides-cog
 description: Presentation generation powered by CellCog. Create PPTX presentations, pitch decks, keynotes, slide designs, image slideshows, professional presentations. AI-powered presentation builder.
+metadata:
+  openclaw:
+    emoji: "📽️"
 ---
 
 # Slides Cog - Presentations Powered by CellCog
@@ -17,16 +20,18 @@ This skill requires the CellCog mothership skill for SDK setup and API calls.
 clawhub install cellcog
 ```
 
-**Read the cellcog skill first** for SDK setup and the `sessions_spawn` pattern. This skill shows you what's possible.
+**Read the cellcog skill first** for SDK setup. This skill shows you what's possible.
 
-**Quick pattern:**
+**Quick pattern (v1.0+):**
 ```python
-client.create_chat_and_stream(
+# Fire-and-forget - returns immediately
+result = client.create_chat(
     prompt="[your presentation request]",
-    session_id=session_id,
-    main_agent=False,
-    chat_mode="agent team"  # Always for presentations
+    notify_session_key="agent:main:main",
+    task_label="presentation-task",
+    chat_mode="agent"  # Agent mode for most presentations
 )
+# Daemon notifies you when complete - do NOT poll
 ```
 
 ---
@@ -107,26 +112,45 @@ CellCog presentations can include:
 
 ## Output Formats
 
-| Format | Best For |
-|--------|----------|
-| **PPTX** | Editable in PowerPoint, Google Slides, Keynote |
-| **PDF** | Sharing, printing, unchangeable |
-| **Interactive HTML** | Web-based presentations |
+### PDF (Strongly Recommended)
+
+CellCog generates presentations best in **PDF format**.
+
+**Why PDF?**
+- AI has full creative control over layout and design
+- Perfect rendering across all devices
+- Professional, polished results every time
+- Supports images, charts, complex layouts without compromise
+
+**If your human requests PPTX or DOCX:**
+1. **Recommend PDF first**: "CellCog produces significantly better results in PDF format—professional quality with perfect layouts. Would PDF work for your needs?"
+2. **If they insist on PPTX**: Be transparent that results will be noticeably lower quality (~30-40% as good as PDF). CellCog can attempt it, but PPTX/DOCX formats weren't designed for AI generation.
+3. **Suggest workflow**: Generate PDF, then use external tools to convert if editable format is essential.
+
+| Format | Quality | Use Case |
+|--------|---------|----------|
+| **PDF** | ⭐⭐⭐⭐⭐ Excellent | Default choice for all presentations |
+| **Interactive HTML** | ⭐⭐⭐⭐ Great | Web-based presentations, internal tools |
+| **PPTX** | ⭐⭐ Limited | Only when editing in PowerPoint is absolutely required |
+
+### Why This Matters
+
+PPTX and DOCX formats were designed for humans to manually build documents with complex editing features. AI excels at a different paradigm: generating complete, beautiful output directly. PDF captures AI's full creative capability; PPTX constrains it.
+
+This isn't a limitation—it's CellCog using the right tool for AI-generated content.
 
 ---
 
-## When to Use Agent Team Mode
+## Chat Mode for Presentations
 
-For presentations, **always use `chat_mode="agent team"`** (the default).
+| Scenario | Recommended Mode |
+|----------|------------------|
+| Standard decks, educational slides, image slideshows, training materials | `"agent"` |
+| Investor pitch decks, board presentations, keynotes requiring narrative craft | `"agent team"` |
 
-Creating presentations involves:
-- Content structuring
-- Narrative flow
-- Visual design
-- Image generation (if needed)
-- Layout optimization
+**Use `"agent"` for most presentations.** Standard business decks, training materials, and informational slides execute well in agent mode.
 
-This multi-step process benefits from the full agent team.
+**Use `"agent team"` for high-stakes presentations** where narrative flow, persuasion, and multi-angle thinking matter—investor pitches, board decks, conference keynotes where every slide needs to build a compelling story.
 
 ---
 

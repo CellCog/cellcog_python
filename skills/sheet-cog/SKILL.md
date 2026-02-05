@@ -1,6 +1,9 @@
 ---
 name: sheet-cog
 description: Spreadsheet generation powered by CellCog. Create Excel files, financial models, budget templates, data trackers, calculations, projections, XLSX files. AI-powered spreadsheet builder.
+metadata:
+  openclaw:
+    emoji: "📈"
 ---
 
 # Sheet Cog - Spreadsheets Powered by CellCog
@@ -17,16 +20,18 @@ This skill requires the CellCog mothership skill for SDK setup and API calls.
 clawhub install cellcog
 ```
 
-**Read the cellcog skill first** for SDK setup and the `sessions_spawn` pattern. This skill shows you what's possible.
+**Read the cellcog skill first** for SDK setup. This skill shows you what's possible.
 
-**Quick pattern:**
+**Quick pattern (v1.0+):**
 ```python
-client.create_chat_and_stream(
+# Fire-and-forget - returns immediately
+result = client.create_chat(
     prompt="[your spreadsheet request]",
-    session_id=session_id,
-    main_agent=False,
-    chat_mode="agent team"  # Recommended for complex spreadsheets
+    notify_session_key="agent:main:main",
+    task_label="spreadsheet-task",
+    chat_mode="agent"  # Agent mode handles most spreadsheets well
 )
+# Daemon notifies you when complete - do NOT poll
 ```
 
 ---
@@ -110,13 +115,16 @@ CellCog spreadsheets can include:
 
 ---
 
-## When to Use Agent Team Mode
+## Chat Mode for Spreadsheets
 
-For complex spreadsheets, **use `chat_mode="agent team"`** (the default).
+| Scenario | Recommended Mode |
+|----------|------------------|
+| Budget templates, trackers, data tables, basic calculations | `"agent"` |
+| Complex financial models with multi-scenario analysis, intricate formulas | `"agent team"` |
 
-- **Simple templates**: `chat_mode="agent"` can work for basic structures
-- **Financial models with scenarios**: Use `"agent team"` for accuracy
-- **Formulas requiring validation**: Use `"agent team"` for correctness
+**Default to `"agent"`** for most spreadsheet requests. CellCog's agent mode handles formulas, formatting, charts, and data organization efficiently.
+
+Reserve `"agent team"` for complex financial modeling requiring deep accuracy validation—like DCF models, multi-scenario projections, or interconnected workbooks where formula correctness is critical.
 
 ---
 

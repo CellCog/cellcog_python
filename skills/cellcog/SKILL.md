@@ -1,6 +1,9 @@
 ---
 name: cellcog
-description: CellCog SDK setup and authentication. Any-to-Any AI for agents - your sub-agent for quality work. Required for research-cog, video-cog, image-cog, audio-cog, dash-cog, slides-cog, sheet-cog.
+description: CellCog SDK setup and authentication. Any-to-Any AI for agents - your sub-agent for quality work. Fire-and-forget pattern with WebSocket notifications. Required for research-cog, video-cog, image-cog, audio-cog, dash-cog, slides-cog, sheet-cog.
+metadata:
+  openclaw:
+    emoji: "🧠"
 ---
 
 # CellCog - Any-to-Any for Agents
@@ -66,8 +69,12 @@ CellCog handles the entire workflow—analyzing, generating, and delivering all 
 ### Installation
 
 ```bash
-pip install cellcog
+pip install cellcog==1.0.0
 ```
+
+**Important:** This skill is tested with SDK v1.0.0. If you encounter issues:
+1. Verify your SDK version matches: `python3 -c "import cellcog; print(cellcog.__version__)"`
+2. Check for skill updates: `clawhub update cellcog` (may reference a different SDK version)
 
 ### Authentication
 
@@ -88,60 +95,138 @@ print(status)  # {"configured": True, "email": "user@example.com", ...}
 
 ---
 
-## CRITICAL: Session Management
+## Fire-and-Forget Pattern (v1.0+)
 
-**Main agent must NOT block on CellCog for more than 2 minutes.** 
+**No more blocking. No more spawning sub-sessions to babysit.**
 
-CellCog tasks can take 30 seconds to 3 hours. Always use `sessions_spawn` to delegate:
+CellCog uses a fire-and-forget pattern:
+1. Call `create_chat()` or `send_message()` - returns **immediately**
+2. A background daemon monitors via WebSocket
+3. Your session receives notification when complete
+
+### Why Fire-and-Forget?
+
+| Old Pattern (v0.1.x) | New Pattern (v1.0+) |
+|---------------------|---------------------|
+| `sessions_spawn` to babysit | No spawning needed |
+| Blocked waiting for completion | Continue other work |
+| Polling every 10 seconds | WebSocket real-time |
+| Complex sub-session management | Simple notification |
+
+### Basic Usage
 
 ```python
-sessions_spawn(
-    task="""
 from cellcog import CellCogClient
 
-# Extract session ID from spawned session
-session_id = session_key.split(":")[-1]
-
 client = CellCogClient()
-result = client.create_chat_and_stream(
+
+# Fire-and-forget: returns immediately
+result = client.create_chat(
     prompt="Research quantum computing advances in 2026",
-    session_id=session_id,
-    main_agent=False,  # CRITICAL: Always False in spawned sessions
-    timeout_seconds=3600
+    notify_session_key="agent:main:main",  # Your session key
+    task_label="quantum-research"          # Label for notification
 )
 
-print(f"Status: {result['status']}")
-print(f"Messages delivered: {result['messages_delivered']}")
-""",
-    runTimeoutSeconds=7200
-)
+print(result["chat_id"])           # "abc123"
+print(result["explanation"])       # Clear guidance on what happens next
+
+# Continue with other work...
+# You'll receive notification at your session when complete!
 ```
 
-### Session ID Extraction
-
-When inside a `sessions_spawn`, extract your session UUID:
+**What the response looks like:**
 ```python
-session_id = session_key.split(":")[-1]  # e.g., "8c980d81-cec5-48a3-926f-2b04053dfde1"
+{
+    "chat_id": "abc123",
+    "status": "tracking",
+    "daemon_listening": True,
+    "listeners": 1,
+    "explanation": "✓ Chat 'quantum-research' created (ID: abc123)\n✓ Daemon is monitoring via WebSocket\n✓ You'll receive notification at 'agent:main:main' when complete\n\nYou can continue with other work. Do NOT poll - the daemon will notify you automatically with the full response and any generated files."
+}
 ```
 
-This ID tracks which messages you've already seen, preventing duplicates across process restarts.
+---
+
+## What You Receive
+
+When CellCog completes, your session receives a notification like:
+
+```
+✅ quantum-research completed!
+
+Chat ID: abc123
+Messages delivered: 5
+Files downloaded:
+  - /outputs/research_report.pdf
+  - /outputs/data_analysis.xlsx
+
+<MESSAGE FROM openclaw on Chat abc123 at 2026-02-04 14:00 UTC>
+Research quantum computing advances in 2026
+<MESSAGE END>
+
+<MESSAGE FROM cellcog on Chat abc123 at 2026-02-04 14:30 UTC>
+Research complete! I've analyzed 47 sources and compiled the findings...
+
+Key Findings:
+- Quantum supremacy achieved in error correction
+- Major breakthrough in topological qubits
+- Commercial quantum computers now available for $2M+
+
+Generated deliverables:
+<SHOW_FILE>/outputs/research_report.pdf</SHOW_FILE>
+<SHOW_FILE>/outputs/data_analysis.xlsx</SHOW_FILE>
+<MESSAGE END>
+
+[CellCog stopped operating on Chat abc123 - waiting for response via send_message()]
+
+Use `client.get_history("abc123")` to view full conversation.
+```
+
+**Message Format Notes:**
+- Timestamps in UTC
+- Files show as local paths (already downloaded by daemon)
+- Full conversation history included
+- Completion indicator after last CellCog message
+
+---
+
+## Interim Updates (Long-Running Tasks)
+
+For tasks taking more than 4 minutes, you'll automatically receive progress updates:
+
+```
+⏳ quantum-research - CellCog is still working
+
+Your request is still being processed. The final response is not ready yet.
+
+Here are interim updates from CellCog showing recent activity:
+  • Searching for quantum computing research papers
+  • Analyzing breakthrough in error correction
+  • Generating comparison charts
+
+Chat ID: abc123
+
+We'll deliver the complete response when CellCog finishes processing.
+```
+
+**These are NOT the final response** - just progress indicators so you know CellCog is actively working. Continue with other tasks; the complete response arrives when processing finishes.
 
 ---
 
 ## Primary Methods
 
-### create_chat_and_stream()
+### create_chat()
 
-Create a new CellCog task and stream responses until completion:
+Create a new CellCog task and return immediately:
 
 ```python
-result = client.create_chat_and_stream(
+result = client.create_chat(
     prompt="Your task description",
-    session_id=session_id,
-    main_agent=False,           # True only if calling from main session (max 2 min timeout)
-    chat_mode="agent team",     # "agent team" for deep work, "agent" for faster simple tasks
-    timeout_seconds=3600,       # Max wait time
-    poll_interval=10            # Seconds between status checks
+    notify_session_key="agent:main:main",  # Who to notify
+    task_label="my-task",                   # Human-readable label
+    chat_mode="agent team",                 # See Chat Modes below
+    project_id=None,                        # Optional CellCog project
+    gateway_url=None                        # Auto-detected from OPENCLAW_GATEWAY_URL env
 )
 ```
 
@@ -149,38 +234,107 @@ result = client.create_chat_and_stream(
 ```python
 {
     "chat_id": "abc123",
-    "status": "completed" | "timeout" | "error",
-    "messages_delivered": 5,
-    "uploaded_files": [...],
-    "elapsed_seconds": 847.3,
-    "error_type": None | "security_threat" | "out_of_memory"
+    "status": "tracking",
+    "daemon_listening": True,
+    "listeners": 1,
+    "explanation": "✓ Chat created...\n✓ Daemon monitoring...\n✓ Do NOT poll..."
+    # "uploaded_files": [...] - only if SHOW_FILE tags were in prompt
 }
 ```
 
-### send_message_and_stream()
+### send_message()
 
 Continue an existing conversation:
 
 ```python
-result = client.send_message_and_stream(
+result = client.send_message(
     chat_id="abc123",
     message="Focus on hardware advances specifically",
-    session_id=session_id,
-    main_agent=False,
-    timeout_seconds=3600
+    notify_session_key="agent:main:main",
+    task_label="continue-research"  # Optional, defaults to "continue-{chat_id[:8]}"
 )
+```
+
+**Listener Behavior:**
+- One listener per `session_key` per chat
+- Calling `send_message()` with same `notify_session_key` updates the existing listener (new `task_label`)
+- Does NOT create duplicate listeners
+
+### get_history()
+
+Get full chat history (for manual inspection):
+
+```python
+result = client.get_history(chat_id="abc123")
+
+print(result["is_operating"])      # True/False
+print(result["formatted_output"])  # Full formatted messages
+print(result["downloaded_files"])  # List of downloaded file paths
+print(result["status_message"])    # Operating status
+```
+
+### get_status()
+
+Quick status check:
+
+```python
+status = client.get_status(chat_id="abc123")
+print(status["is_operating"])  # True/False
+print(status["error_type"])    # None, "security_threat", or "out_of_memory"
 ```
 
 ---
 
 ## Chat Modes
 
-| Mode | Use When | Typical Duration |
-|------|----------|-----------------|
-| `"agent team"` | Deep research, complex deliverables, multi-step tasks | 5-60 minutes |
-| `"agent"` | Simple questions, quick tasks, single-step work | 30 seconds - 5 minutes |
+CellCog offers two powerful modes optimized for different scenarios:
 
-**Default to `"agent team"` for quality work.** Use `"agent"` only for trivial tasks.
+| Mode | Best For | Speed | Cost |
+|------|----------|-------|------|
+| `"agent"` | Most tasks - images, audio, dashboards, spreadsheets, standard presentations | Fast (seconds to minutes) | 1x |
+| `"agent team"` | Cutting-edge work requiring multi-angle analysis - investor pitch decks, deep research, complex marketing videos | Slower (5-60 min) | 4x |
+
+**Selection Guide:**
+- **Default to `"agent"`** - It's powerful, fast, and handles most tasks excellently
+- **Use `"agent team"` when you need:**
+  - Deep research with multi-source synthesis
+  - Boardroom-quality investor decks
+  - Marketing videos requiring creative direction
+  - Work that benefits from multiple reasoning passes
+
+**The key question:** Does this task require thinking from multiple angles and deep deliberation? If yes → `"agent team"`. If it's execution-focused → `"agent"`.
+
+### Clarifying Questions Behavior
+
+**Agent mode asks one round of clarifying questions** in most cases (~99%) to ensure it delivers exactly what you need.
+
+To skip clarifying questions, explicitly state in your prompt:
+- "No clarifying questions needed"
+- "Proceed directly without questions"
+- "Skip clarifications and deliver"
+
+This gives you control over the interaction style while still getting high-quality results.
+
+---
+
+## Session Keys
+
+The `notify_session_key` tells CellCog where to deliver the notification.
+
+### Common Patterns
+
+| Context | Session Key |
+|---------|-------------|
+| Main agent | `"agent:main:main"` |
+| Sub-agent | `"agent:main:subagent:{uuid}"` |
+| Telegram DM | `"agent:main:telegram:dm:{id}"` |
+| Discord group | `"agent:main:discord:group:{id}"` |
+
+### Parent Fallback
+
+If your session dies before completion, the SDK automatically notifies the parent session:
+- `agent:main:subagent:uuid123` → falls back to `agent:main:main`
+- Nested subagents walk up the chain until delivery succeeds
 
 ---
 
@@ -198,7 +352,7 @@ Analyze this sales data and create a report:
 
 The SDK automatically:
 1. Uploads the file to CellCog
-2. Tracks the original path with `external_local_path`
+2. Tracks the original path
 3. Downloads output files back to your filesystem
 
 ### Requesting File Output (GENERATE_FILE)
@@ -213,26 +367,43 @@ Create a PDF report and save it here:
 
 CellCog will generate the file and the SDK will download it to your specified path.
 
+### Auto-Download
+
+Files without `GENERATE_FILE` are automatically downloaded to:
+```
+~/.cellcog/chats/{chat_id}/downloads/
+```
+
 ---
 
-## Message Streaming Format
+## Background Daemon
 
-As CellCog works, messages stream to stdout:
+The SDK runs a background daemon that:
+- Monitors tracked chats via WebSocket
+- Downloads files when complete
+- Notifies your session with results
+- Survives system restarts
 
+### Automatic Management
+
+The daemon is automatically started when you call `create_chat()` or `send_message()`. You don't need to manage it manually.
+
+### State Persistence
+
+Tracking state is stored in files:
 ```
-<MESSAGE FROM cellcog on Chat abc123 at 2026-02-04 11:30 UTC>
-Research complete! I've analyzed 47 sources and compiled the findings.
-
-Generated deliverables:
-- /outputs/executive_summary.pdf
-- /outputs/dashboard/index.html
-- /outputs/presentation.pptx
-
-<MESSAGE END>
-[CellCog stopped operating on Chat abc123 - waiting for response via send_message_and_stream()]
+~/.cellcog/
+├── tracked_chats/     # One file per tracked chat
+│   └── abc123.json
+└── chats/             # Per-chat data
+    └── abc123/
+        └── .seen_indices/  # Per-session message tracking
 ```
 
-Both `cellcog` and `openclaw` messages are shown, so you can see the full conversation history.
+This means:
+- Survives daemon restarts
+- Survives system reboots
+- No messages lost
 
 ---
 
@@ -243,7 +414,7 @@ Both `cellcog` and `openclaw` messages are shown, so you can see the full conver
 from cellcog.exceptions import PaymentRequiredError
 
 try:
-    result = client.create_chat_and_stream(...)
+    result = client.create_chat(...)
 except PaymentRequiredError as e:
     print(f"Add credits at: {e.subscription_url}")
 ```
@@ -253,58 +424,23 @@ except PaymentRequiredError as e:
 from cellcog.exceptions import AuthenticationError
 
 try:
-    result = client.create_chat_and_stream(...)
+    result = client.create_chat(...)
 except AuthenticationError:
     print("Invalid API key. Get a new one at: https://cellcog.ai/profile?tab=api-keys")
-```
-
-### Timeout
-```python
-result = client.create_chat_and_stream(..., timeout_seconds=3600)
-if result["status"] == "timeout":
-    # Task still running, can check back later
-    result = client.stream_unseen_messages_and_wait_for_completion(
-        chat_id=result["chat_id"],
-        session_id=session_id,
-        main_agent=False,
-        timeout_seconds=3600
-    )
-```
-
----
-
-## Advanced: Checking Back on Tasks
-
-If you spawned a task earlier and want to check its status:
-
-```python
-# Get status without streaming
-status = client.get_status(chat_id="abc123")
-print(status)  # {"status": "processing" | "ready", "is_operating": bool, ...}
-
-# Resume streaming unseen messages
-result = client.stream_unseen_messages_and_wait_for_completion(
-    chat_id="abc123",
-    session_id=session_id,
-    main_agent=False,
-    timeout_seconds=3600
-)
 ```
 
 ---
 
 ## Quick Reference
 
-| Method | Purpose |
-|--------|---------|
-| `set_api_key(key)` | Store API key |
-| `get_account_status()` | Check if configured |
-| `create_chat_and_stream()` | New task + stream |
-| `send_message_and_stream()` | Continue conversation |
-| `stream_unseen_messages_and_wait_for_completion()` | Resume watching |
-| `get_status(chat_id)` | Check task status |
-| `get_history(chat_id, session_id)` | Get full history |
-| `list_chats(limit)` | List recent chats |
+| Method | Purpose | Returns Immediately |
+|--------|---------|-------------------|
+| `set_api_key(key)` | Store API key | Yes |
+| `get_account_status()` | Check if configured | Yes |
+| `create_chat()` | **Fire-and-forget chat creation** | ✓ Yes |
+| `send_message()` | **Fire-and-forget message** | ✓ Yes |
+| `get_history()` | Get full history (manual inspection) | Yes (sync) |
+| `get_status()` | Quick status check | Yes (sync) |
 
 ---
 
@@ -312,7 +448,7 @@ result = client.stream_unseen_messages_and_wait_for_completion(
 
 Install capability-specific skills to explore what CellCog can do:
 
-- `clawhub install research-cog` - Deep research, market analysis, citations
+- `clawhub install research-cog` - Deep research, market analysis, competitive intelligence
 - `clawhub install video-cog` - AI video generation, lipsync, marketing videos
 - `clawhub install image-cog` - Image generation, consistent characters
 - `clawhub install audio-cog` - Text-to-speech, music generation
@@ -321,3 +457,5 @@ Install capability-specific skills to explore what CellCog can do:
 - `clawhub install sheet-cog` - Spreadsheets, financial models
 
 **This mothership skill shows you HOW to call CellCog. Satellite skills show you WHAT's possible.**
+
+**All satellite skills work with SDK v1.0.0.** Each satellite references this mothership for technical details.

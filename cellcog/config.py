@@ -77,6 +77,21 @@ class Config:
     def api_base_url(self) -> str:
         """Get API base URL."""
         return os.environ.get("CELLCOG_API_URL") or self.API_BASE_URL
+    
+    def get_request_headers(self) -> dict:
+        """
+        Get standard headers for all CellCog API requests.
+        
+        Includes API key and SDK version for backend validation.
+        
+        Returns:
+            Dictionary with X-API-Key and X-CellCog-Python-SDK-Version
+        """
+        from . import __version__
+        return {
+            "X-API-Key": self.api_key,
+            "X-CellCog-Python-SDK-Version": __version__
+        }
 
     @property
     def is_configured(self) -> bool:

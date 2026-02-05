@@ -1,6 +1,9 @@
 ---
 name: video-cog
 description: AI video generation powered by CellCog. Marketing videos, explainer videos, educational content, documentary style, cinematic, UGC, news videos, lipsync, spokesperson videos. Create professional videos with AI.
+metadata:
+  openclaw:
+    emoji: "🎬"
 ---
 
 # Video Cog - AI Video Generation Powered by CellCog
@@ -17,16 +20,18 @@ This skill requires the CellCog mothership skill for SDK setup and API calls.
 clawhub install cellcog
 ```
 
-**Read the cellcog skill first** for SDK setup and the `sessions_spawn` pattern. This skill shows you what's possible.
+**Read the cellcog skill first** for SDK setup. This skill shows you what's possible.
 
-**Quick pattern:**
+**Quick pattern (v1.0+):**
 ```python
-client.create_chat_and_stream(
+# Fire-and-forget - returns immediately
+result = client.create_chat(
     prompt="[your video request]",
-    session_id=session_id,
-    main_agent=False,
-    chat_mode="agent team"  # Always for video generation
+    notify_session_key="agent:main:main",
+    task_label="video-task",
+    chat_mode="agent team"
 )
+# Daemon notifies you when complete - do NOT poll
 ```
 
 ---

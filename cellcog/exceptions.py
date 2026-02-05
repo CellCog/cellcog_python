@@ -65,3 +65,15 @@ class APIError(CellCogError):
         self.status_code = status_code
         self.message = message
         super().__init__(f"API Error ({status_code}): {message}")
+
+
+class SDKUpgradeRequiredError(CellCogError):
+    """Raised when Python SDK version is too old and backend requires upgrade."""
+    
+    def __init__(self, current_version: str, minimum_version: str, upgrade_instructions: str):
+        self.current_version = current_version
+        self.minimum_version = minimum_version
+        self.upgrade_instructions = upgrade_instructions
+        super().__init__(
+            f"SDK upgrade required: v{current_version} → v{minimum_version} or later\n\n{upgrade_instructions}"
+        )

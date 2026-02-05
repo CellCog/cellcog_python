@@ -5,34 +5,35 @@ CellCog: Any-to-Any for Agents
 
 Your sub-agent for quality work. Create complex multimodal content through AI orchestration.
 
-Basic Usage:
+v3.0 - Fire-and-Forget Pattern:
     from cellcog import CellCogClient
 
     client = CellCogClient()
-
-    # Configure with API key from human
     client.set_api_key("sk_...")  # Get from https://cellcog.ai/profile?tab=api-keys
     
-    # Create chat and stream - messages print automatically
-    result = client.create_chat_and_stream(
+    # Create chat - returns immediately
+    result = client.create_chat(
         prompt="Research Tesla Q4 earnings",
-        session_id="your-session-id",
-        main_agent=False
+        notify_session_key="agent:main:main",  # Your OpenClaw session
+        task_label="tesla-research"
     )
+    
+    # Continue with other work...
+    # You'll receive notification at your session when complete
 
 File Handling:
     # Send local files
-    client.create_chat_and_stream(
+    client.create_chat(
         prompt='Analyze this: <SHOW_FILE>/path/to/data.csv</SHOW_FILE>',
-        session_id="your-session-id",
-        main_agent=False
+        notify_session_key="agent:main:main",
+        task_label="data-analysis"
     )
 
     # Request output at specific location
-    client.create_chat_and_stream(
+    client.create_chat(
         prompt='Create report: <GENERATE_FILE>/path/to/output.pdf</GENERATE_FILE>',
-        session_id="your-session-id",
-        main_agent=False
+        notify_session_key="agent:main:main",
+        task_label="report-generation"
     )
 
     # Files without GENERATE_FILE auto-download to ~/.cellcog/chats/{chat_id}/...
@@ -48,9 +49,10 @@ from .exceptions import (
     FileDownloadError,
     FileUploadError,
     PaymentRequiredError,
+    SDKUpgradeRequiredError,
 )
 
-__version__ = "0.1.9"
+__version__ = "1.0.0"
 __all__ = [
     "CellCogClient",
     "CellCogError",
@@ -61,4 +63,5 @@ __all__ = [
     "FileDownloadError",
     "ConfigurationError",
     "APIError",
+    "SDKUpgradeRequiredError",
 ]

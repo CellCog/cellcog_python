@@ -1,6 +1,9 @@
 ---
 name: research-cog
 description: Deep research agent powered by CellCog. Market research, competitive analysis, stock analysis, investment research, academic research with citations. Your AI research analyst.
+metadata:
+  openclaw:
+    emoji: "🔬"
 ---
 
 # Research Cog - Deep Research Powered by CellCog
@@ -17,16 +20,18 @@ This skill requires the CellCog mothership skill for SDK setup and API calls.
 clawhub install cellcog
 ```
 
-**Read the cellcog skill first** for SDK setup and the `sessions_spawn` pattern. This skill shows you what's possible.
+**Read the cellcog skill first** for SDK setup. This skill shows you what's possible.
 
-**Quick pattern:**
+**Quick pattern (v1.0+):**
 ```python
-client.create_chat_and_stream(
+# Fire-and-forget - returns immediately
+result = client.create_chat(
     prompt="[your research query]",
-    session_id=session_id,
-    main_agent=False,
-    chat_mode="agent team"  # Always for deep research
+    notify_session_key="agent:main:main",
+    task_label="research-task",
+    chat_mode="agent team"  # Deep research
 )
+# Daemon notifies you when complete - do NOT poll
 ```
 
 ---
@@ -115,11 +120,19 @@ Use `chat_mode="agent"` only for trivial lookups like "What's Apple's stock tick
 
 ## Research Quality Features
 
-### Citations
-CellCog automatically provides citations for factual claims. Expect numbered references like [1], [2] with source URLs.
+### Citations (On Request)
 
-### Data Verification
-For financial and statistical data, CellCog cross-references multiple sources to ensure accuracy.
+**Citations are NOT automatic.** CellCog focuses on delivering accurate, well-researched content by default.
+
+If you need citations:
+- **Explicitly request them**: "Include citations for all factual claims with source URLs"
+- **Specify format**: "Provide citations as footnotes" or "Include a references section at the end"
+- **Indicate placement**: "Citations inline" vs "Citations in appendix"
+
+Without explicit citation requests, CellCog prioritizes delivering accurate information efficiently.
+
+### Data Accuracy
+CellCog cross-references multiple sources for financial and statistical data, ensuring accuracy even without explicit citations.
 
 ### Structured Analysis
 Complex research is organized with clear sections, executive summaries, and actionable insights.
