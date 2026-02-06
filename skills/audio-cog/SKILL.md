@@ -48,18 +48,52 @@ Convert text to natural-sounding speech:
 - **E-Learning**: "Create clear, instructional voiceover for this training module"
 - **IVR/Phone Systems**: "Generate professional phone menu prompts"
 
-### Voice Customization
+---
 
-Control how the voice sounds:
+## Available Voices
 
-- **Gender**: Male, female, neutral
-- **Age**: Young adult, middle-aged, senior
-- **Emotion**: Neutral, happy, sad, excited, serious, friendly, authoritative
-- **Accent**: American, British, Australian, Indian, and many more
+CellCog provides 8 high-quality voices with distinct characteristics:
+
+| Voice | Gender | Best For | Characteristics |
+|-------|--------|----------|-----------------|
+| **cedar** | Male | Product videos, announcements | Warm, resonant, authoritative, trustworthy |
+| **marin** | Female | Professional content, tutorials | Bright, articulate, emotionally agile |
+| **ballad** | Male | Storytelling, flowing narratives | Smooth, melodic, musical quality |
+| **coral** | Female | Energetic content, ads | Vibrant, lively, dynamic, spirited |
+| **echo** | Male | Thoughtful content, documentaries | Calm, measured, deliberate |
+| **sage** | Female | Educational, knowledge content | Wise, contemplative, reflective |
+| **shimmer** | Female | Gentle content, wellness | Soft, gentle, soothing, approachable |
+| **verse** | Male | Creative, artistic content | Poetic, rhythmic, expressive |
+
+### Voice Recommendations by Use Case
+
+**For product videos and announcements:**
+> Use **cedar** (male) or **marin** (female) - both project confidence and professionalism.
+
+**For storytelling and audiobooks:**
+> Use **ballad** (male) or **sage** (female) - designed for engaging, flowing narratives.
+
+**For high-energy content:**
+> Use **coral** (female) - vibrant and dynamic, perfect for ads and exciting announcements.
+
+**For calm, educational content:**
+> Use **echo** (male) or **shimmer** (female) - measured pacing ideal for learning.
+
+### Voice Style Customization
+
+Beyond selecting a voice, you can fine-tune delivery with style instructions:
+
+- **Accent & dialect**: American, British, Australian, Indian, etc.
+- **Emotional range**: Excited, serious, warm, mysterious, dramatic
 - **Pacing**: Slow and deliberate, conversational, fast and energetic
-- **Tone**: Professional, casual, warm, mysterious, dramatic
+- **Special effects**: Whispering, character impressions
 
-### Music Generation
+**Example with style instructions:**
+> "Generate voiceover using cedar voice with a warm, conversational tone. Speak at medium pace with slight enthusiasm when mentioning features. American accent."
+
+---
+
+## Music Generation
 
 Create original background music and soundtracks:
 
@@ -78,6 +112,19 @@ Create original background music and soundtracks:
 | **Tempo** | 60 BPM (slow) to 180+ BPM (fast) |
 | **Mood** | Upbeat, calm, dramatic, mysterious, inspiring, melancholic |
 | **Instruments** | Piano, guitar, synth, strings, drums, brass, etc. |
+
+### Music Licensing
+
+**All AI-generated music from CellCog is royalty-free and fully yours to use commercially.**
+
+You have complete rights to use the generated music for:
+- YouTube videos (including monetized content)
+- Commercial projects and advertisements
+- Podcasts and streaming
+- Apps and games
+- Any other commercial or personal use
+
+No attribution required. No licensing fees. The music is generated uniquely for you.
 
 ---
 
@@ -102,59 +149,62 @@ There's no scenario where agent team mode provides meaningfully better audio out
 
 ## Example Audio Prompts
 
-**Professional voiceover:**
-> "Generate a professional voiceover for this script:
+**Professional voiceover with specific voice:**
+> "Generate a professional voiceover using the **marin** voice for this script:
 > 
 > 'Introducing TaskFlow - the project management tool that actually works. With intelligent automation, seamless collaboration, and powerful analytics, TaskFlow helps teams do their best work.'
 > 
-> Voice: Female, American accent, confident and friendly, medium pace. Suitable for a product launch video."
+> Style: Confident and friendly, medium pace. Suitable for a product launch video."
 
-**Podcast intro:**
-> "Create a podcast intro voiceover:
+**Podcast intro with voice selection:**
+> "Create a podcast intro voiceover using **cedar** voice:
 > 
 > 'Welcome to Future Forward, the podcast where we explore the technologies shaping tomorrow. I'm your host, and today we're diving into...'
 > 
-> Voice: Male, warm and engaging, conversational tone. Also generate a 10-second upbeat intro music bed to go underneath."
+> Style: Warm and engaging, conversational tone. Also generate a 10-second upbeat intro music bed to go underneath."
 
 **Background music:**
 > "Generate 2 minutes of calm, lo-fi hip-hop style background music. Should be chill and unobtrusive, good for studying or working. Include soft piano, mellow beats, and gentle vinyl crackle. 75 BPM."
 
 **Audiobook narration:**
-> "Create an audiobook-style narration of this passage:
+> "Create an audiobook-style narration using **ballad** voice for this passage:
 > 
 > [passage text]
 > 
-> Voice: Male, British accent, 50s, warm and storytelling quality. Pace should be measured, with appropriate pauses for drama. Think classic BBC narrator."
+> Style: Warm storytelling quality, measured pace with appropriate pauses for drama."
 
 **Cinematic music:**
-> "Generate 90 seconds of cinematic orchestral music for a tech company's 'About Us' video. Start soft and inspiring, build to a confident crescendo, then resolve to a hopeful ending. Think Hans Zimmer meets corporate inspiration."
+> "Generate 90 seconds of cinematic orchestral music for a tech company's 'About Us' video. Start soft and inspiring, build to a confident crescendo, then resolve to a hopeful ending."
 
 ---
 
 ## Multi-Language Support
 
-CellCog can generate speech in many languages:
+CellCog can generate speech in 50+ languages:
 
 - English (multiple accents)
 - Spanish, French, German, Italian, Portuguese
 - Chinese (Mandarin, Cantonese)
 - Japanese, Korean
 - Hindi, Arabic
+- Russian, Polish, Dutch
 - And many more
 
 Specify the language in your prompt:
-> "Generate this text in Japanese with a native female speaker: 'いらっしゃいませ...'"
+> "Generate this text in Japanese with a native female speaker using shimmer voice: 'いらっしゃいませ...'"
 
 ---
 
 ## Tips for Better Audio
 
-1. **For voiceovers**: Provide the complete script. Don't say "something about our product" - write out exactly what should be said.
+1. **Choose the right voice**: Match the voice to your content type. Cedar/marin for professional, ballad/sage for storytelling, coral for energy.
 
-2. **Describe the voice**: Age, gender, accent, emotion, pace. "Professional female, American, confident but warm, medium pace" is clear.
+2. **Provide the complete script**: Don't say "something about our product" - write out exactly what should be said.
 
-3. **For music**: Specify duration, tempo (BPM if you know it), mood, and genre. Reference artists or songs if helpful: "Think lo-fi beats like ChilledCow playlists."
+3. **Include style instructions**: "Confident but warm", "slow and deliberate", "with slight excitement" helps shape delivery.
 
-4. **Pronunciation guidance**: For names or technical terms, add pronunciation hints: "CellCog (pronounced SELL-kog)"
+4. **For music**: Specify duration, tempo (BPM if you know it), mood, and genre.
 
-5. **Emotional beats**: For longer voiceovers, indicate tone shifts: "[excited] And now for the big reveal... [serious] But there's a catch."
+5. **Pronunciation guidance**: For names or technical terms, add hints: "CellCog (pronounced SELL-kog)"
+
+6. **Emotional beats**: For longer voiceovers, indicate tone shifts: "[excited] And now for the big reveal... [serious] But there's a catch."

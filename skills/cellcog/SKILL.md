@@ -44,7 +44,7 @@ Create ALL of the following:
 1. A PDF executive summary report with charts
 2. An interactive HTML dashboard for the leadership team
 3. A 60-second video presentation for the all-hands meeting
-4. A PPTX slide deck for the board presentation
+4. A slide deck for the board presentation
 5. An Excel file with the underlying analysis and projections
 """
 ```
@@ -141,7 +141,7 @@ print(result["explanation"])       # Clear guidance on what happens next
     "status": "tracking",
     "daemon_listening": True,
     "listeners": 1,
-    "explanation": "✓ Chat 'quantum-research' created (ID: abc123)\n✓ Daemon is monitoring via WebSocket\n✓ You'll receive notification at 'agent:main:main' when complete\n\nYou can continue with other work. Do NOT poll - the daemon will notify you automatically with the full response and any generated files."
+    "explanation": "✓ Chat 'quantum-research' created (ID: abc123)\n✓ Daemon is monitoring via WebSocket\n✓ You'll receive notification at 'agent:main:main' when complete\n\n⏱️ Agent mode typically asks clarifying questions within 1-2 minutes.\nTo skip clarifications, add 'No clarifying questions needed' to your prompt.\n\nYou can continue with other work. Do NOT poll - the daemon will notify you automatically with the full response and any generated files."
 }
 ```
 
@@ -237,7 +237,7 @@ result = client.create_chat(
     "status": "tracking",
     "daemon_listening": True,
     "listeners": 1,
-    "explanation": "✓ Chat created...\n✓ Daemon monitoring...\n✓ Do NOT poll..."
+    "explanation": "✓ Chat created...\n✓ Daemon monitoring...\n⏱️ Agent mode: expect clarifying questions in 1-2 min...\n✓ Do NOT poll..."
     # "uploaded_files": [...] - only if SHOW_FILE tags were in prompt
 }
 ```
@@ -306,7 +306,7 @@ CellCog offers two powerful modes optimized for different scenarios:
 
 ### Clarifying Questions Behavior
 
-**Agent mode asks one round of clarifying questions** in most cases (~99%) to ensure it delivers exactly what you need.
+**Agent mode asks one round of clarifying questions** in most cases (~99%) to ensure it delivers exactly what you need. Expect clarifying questions within 1-2 minutes of creating a chat.
 
 To skip clarifying questions, explicitly state in your prompt:
 - "No clarifying questions needed"

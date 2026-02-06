@@ -1,6 +1,6 @@
 ---
 name: slides-cog
-description: Presentation generation powered by CellCog. Create PPTX presentations, pitch decks, keynotes, slide designs, image slideshows, professional presentations. AI-powered presentation builder.
+description: Presentation generation powered by CellCog. Create PDF presentations, pitch decks, keynotes, slide designs, image slideshows, professional presentations. AI-powered presentation builder.
 metadata:
   openclaw:
     emoji: "📽️"
@@ -33,6 +33,33 @@ result = client.create_chat(
 )
 # Daemon notifies you when complete - do NOT poll
 ```
+
+---
+
+## PDF is the Default (And the Future)
+
+**CellCog generates all presentations and slides as PDF by default.** No questions asked.
+
+### Why PDF?
+
+AI excels at generating complete, beautiful documents directly. PDF captures AI's full creative capability:
+- Full control over layout, typography, and design
+- Perfect rendering across all devices
+- Professional, polished results every time
+- Supports images, charts, complex layouts without compromise
+
+**PDF is the future of AI-generated documents.** The paradigm has shifted—AI generates finished products, not editable drafts.
+
+### What About PPTX/DOCX?
+
+PPTX and DOCX formats were designed for humans to manually build documents with complex editing features. They constrain AI's creative output.
+
+**If you absolutely need PPTX or DOCX:**
+- You must explicitly request it in your prompt: "Create this as PPTX" or "I need an editable DOCX"
+- Be aware that quality will be noticeably lower (~30-40% of PDF quality)
+- Consider: Generate PDF first, then use external tools to convert if editing is essential
+
+**We don't ask which format you want.** PDF is the answer. If you need something else, tell us upfront.
 
 ---
 
@@ -110,34 +137,13 @@ CellCog presentations can include:
 
 ---
 
-## Output Formats
+## Output Format Summary
 
-### PDF (Strongly Recommended)
-
-CellCog generates presentations best in **PDF format**.
-
-**Why PDF?**
-- AI has full creative control over layout and design
-- Perfect rendering across all devices
-- Professional, polished results every time
-- Supports images, charts, complex layouts without compromise
-
-**If your human requests PPTX or DOCX:**
-1. **Recommend PDF first**: "CellCog produces significantly better results in PDF format—professional quality with perfect layouts. Would PDF work for your needs?"
-2. **If they insist on PPTX**: Be transparent that results will be noticeably lower quality (~30-40% as good as PDF). CellCog can attempt it, but PPTX/DOCX formats weren't designed for AI generation.
-3. **Suggest workflow**: Generate PDF, then use external tools to convert if editable format is essential.
-
-| Format | Quality | Use Case |
-|--------|---------|----------|
-| **PDF** | ⭐⭐⭐⭐⭐ Excellent | Default choice for all presentations |
+| Format | Quality | When to Use |
+|--------|---------|-------------|
+| **PDF** | ⭐⭐⭐⭐⭐ Excellent | **Default for everything** |
 | **Interactive HTML** | ⭐⭐⭐⭐ Great | Web-based presentations, internal tools |
-| **PPTX** | ⭐⭐ Limited | Only when editing in PowerPoint is absolutely required |
-
-### Why This Matters
-
-PPTX and DOCX formats were designed for humans to manually build documents with complex editing features. AI excels at a different paradigm: generating complete, beautiful output directly. PDF captures AI's full creative capability; PPTX constrains it.
-
-This isn't a limitation—it's CellCog using the right tool for AI-generated content.
+| **PPTX** | ⭐⭐ Limited | Only when explicitly requested AND editing in PowerPoint is absolutely required |
 
 ---
 
@@ -199,6 +205,9 @@ This isn't a limitation—it's CellCog using the right tool for AI-generated con
 **Image slideshow:**
 > "Create a visual slideshow presentation showcasing 10 images of modern architecture around the world. Each slide should have: one stunning building image, the building name, location, and architect. Minimal text, maximum visual impact. Generate the images."
 
+**Explicitly requesting PPTX (only when necessary):**
+> "Create a 10-slide sales deck as PPTX (I need to edit it in PowerPoint). Note: I understand PDF quality is better, but I need the editable format for my team's workflow."
+
 ---
 
 ## Tips for Better Presentations
@@ -213,4 +222,4 @@ This isn't a limitation—it's CellCog using the right tool for AI-generated con
 
 5. **Mention the audience**: "For investors", "For technical team", "For executives" changes tone and detail level.
 
-6. **Specify format**: "PPTX for editing" or "PDF for sharing."
+6. **Trust PDF**: It's the default for a reason. Only request PPTX/DOCX if you truly need to edit the file afterward.
