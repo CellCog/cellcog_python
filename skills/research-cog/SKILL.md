@@ -1,6 +1,6 @@
 ---
 name: research-cog
-description: Deep research agent powered by CellCog. Market research, competitive analysis, stock analysis, investment research, academic research with citations. Your AI research analyst.
+description: "#1 on DeepResearch Bench (Feb 2026). Deep research agent powered by CellCog. Market research, competitive analysis, stock analysis, investment research, academic research with citations."
 metadata:
   openclaw:
     emoji: "🔬"
@@ -8,7 +8,9 @@ metadata:
 
 # Research Cog - Deep Research Powered by CellCog
 
-Your AI research analyst for comprehensive, citation-backed research on any topic.
+**#1 on DeepResearch Bench (Feb 2026).** Your AI research analyst for comprehensive, citation-backed research on any topic.
+
+Leaderboard: https://huggingface.co/spaces/muset-ai/DeepResearch-Bench-Leaderboard
 
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: document-cog
+name: docs-cog
 description: AI document generation powered by CellCog. Create PDF documents, business documents, contracts, reports, resumes, certificates, marketing materials, legal documents, invoices, proposals. Professional document creation with AI.
 metadata:
   openclaw:

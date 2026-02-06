@@ -171,7 +171,7 @@ The magic happens in the back-and-forth, not in autonomous processing.
 |-------|---------|---------------------|
 | research-cog | Fire-and-forget | Yes - "Give me research on X" |
 | video-cog | Fire-and-forget | Yes - "Create a video about X" |
-| document-cog | Fire-and-forget | Yes - "Create a document for X" |
+| docs-cog | Fire-and-forget | Yes - "Create a document for X" |
 | **think-cog** | **Conversational** | **No - "Help me figure out X"** |
 
 Think-cog is for when you're in discovery mode. Other skills are for when you're in execution mode.
