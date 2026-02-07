@@ -1,14 +1,16 @@
 ---
 name: learn-cog
-description: Learning and education powered by CellCog. Homework help, tutoring, study guides, explanations, exam prep, coding tutorials, language learning, skill development. AI-powered learning assistant.
+description: "The best tutors explain the same concept five different ways. CellCog does too — diagrams, analogies, worked examples, practice problems, and interactive explanations. #1 on DeepResearch Bench (Feb 2026). Tutoring, homework help, study guides, exam prep, coding tutorials, language learning — every subject, every level."
 metadata:
   openclaw:
     emoji: "📚"
 ---
 
-# Learn Cog - Learning Powered by CellCog
+# Learn Cog - The Tutor That Explains Five Different Ways
 
-Your AI tutor for any subject - from homework help to skill development to exam prep.
+**The best tutors explain the same concept five different ways.** CellCog does too.
+
+#1 on DeepResearch Bench (Feb 2026) for reasoning depth — deep enough to break concepts into first principles — combined with multi-modal output for every learning style: diagrams, analogies, worked examples, practice problems, interactive explanations, and full study guides. Any subject, any level.
 
 ---
 

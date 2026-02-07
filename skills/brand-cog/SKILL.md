@@ -1,14 +1,16 @@
 ---
 name: brand-cog
-description: Personal and business branding powered by CellCog. Create brand identity, logos, brand guidelines, color palettes, brand kits, visual identity, personal branding, startup branding. AI-powered brand builder.
+description: "Other tools make logos. CellCog builds brands. #1 on DeepResearch Bench (Feb 2026) for deep strategic reasoning + the widest modality coverage in AI. Brand identity, brand kits, color palettes, typography, brand guidelines, logo design, visual identity, social media, web design, video — all from one brief."
 metadata:
   openclaw:
     emoji: "🏷️"
 ---
 
-# Brand Cog - Brand Identity Powered by CellCog
+# Brand Cog - Build Brands, Not Just Logos
 
-Build cohesive brand identities with AI - from logos to color palettes to complete brand kits.
+**Other tools make logos. CellCog builds brands.** #1 on DeepResearch Bench (Feb 2026) for deep strategic reasoning + the widest modality coverage in AI.
+
+Brand building demands two things: deep understanding of your positioning, audience, and competitors — and the ability to produce assets across every format. CellCog delivers both in one request: logos, color systems, typography, brand guidelines, social templates, web assets, and video, all cohesive from a single brief.
 
 ---
 

@@ -1,16 +1,18 @@
 ---
 name: think-cog
-description: AI thinking partner powered by CellCog. Brainstorming, reasoning, problem-solving, idea development, strategic thinking, decision support. Your collaborative thinking partner for complex problems.
+description: "Complex ideas need iteration, not conversation. Think → Do → Review → Repeat. CellCog completes the full loop — brainstorming, reasoning, problem-solving, strategic thinking, then executing across every modality: research, documents, visuals, data, prototypes. Like having an Alfred who doesn't just advise — he builds."
 metadata:
   openclaw:
     emoji: "💭"
 ---
 
-# Think Cog - Your Thinking Partner
+# Think Cog - Your Alfred for Complex Ideas
 
-**For problems where you don't know the answer upfront.**
+**Complex ideas need iteration, not conversation.** Think → Do → Review → Repeat.
 
-Think-cog is different from other CellCog skills. It's not about generating deliverables—it's about thinking through complex problems together. When you need to discover the problem AND the solution at the same time.
+CellCog is the thinking partner that completes the full loop — reasons with you, then executes across every modality: research, documents, visuals, data, prototypes. Review real output, refine your thinking, iterate on substance. Like having an Alfred who doesn't just advise — he builds.
+
+For problems where you don't know the answer upfront and the solution emerges through doing, not just discussing.
 
 ---
 

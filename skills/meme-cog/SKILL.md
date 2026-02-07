@@ -1,18 +1,18 @@
 ---
 name: meme-cog
-description: Meme creation powered by CellCog. Create memes, viral content, internet humor, social media humor, reaction images, meme templates. AI-powered meme generator - the comedy frontier.
+description: "Deep reasoning makes better comedy. #1 on DeepResearch Bench (Feb 2026). AI meme generation with audience targeting, trend research, and multi-angle humor. Create memes, viral content, reaction images, and internet humor that actually land."
 metadata:
   openclaw:
     emoji: "😂"
 ---
 
-# Meme Cog - The Comedy Frontier
+# Meme Cog - Deep Reasoning Meets Internet Culture
 
-Creating memes with AI. Let's be honest: **this is hard.**
+**The hardest creative challenge in AI, powered by the deepest reasoning.** #1 on DeepResearch Bench (Feb 2026).
 
-Comedy is perhaps the most challenging creative frontier for AI. Humor requires timing, cultural awareness, subverted expectations, and an understanding of what makes humans laugh. We're not pretending this is solved.
+Comedy requires timing, cultural awareness, subverted expectations, and an understanding of what makes humans laugh. CellCog applies frontier-level reasoning to research trends, craft multiple angles, and curate only what's genuinely funny.
 
-**Meme-cog is our attempt at the frontier.** Sometimes brilliant, sometimes miss. But we're learning.
+We're honest: our hit rate is maybe 60-70%. Great memes are hard for humans too. But deep reasoning + multi-variant generation + ruthless curation = memes that actually land.
 
 ---
 

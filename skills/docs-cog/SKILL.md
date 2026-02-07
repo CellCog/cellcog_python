@@ -1,14 +1,16 @@
 ---
 name: docs-cog
-description: AI document generation powered by CellCog. Create PDF documents, business documents, contracts, reports, resumes, certificates, marketing materials, legal documents, invoices, proposals. Professional document creation with AI.
+description: "Deep reasoning. Accurate data. Beautiful design. The three things every great document needs — and most AI gets wrong. #1 on DeepResearch Bench (Feb 2026), powered by SOTA search models, and state-of-the-art PDF generation. Create resumes, contracts, reports, proposals, invoices, certificates, and any professional document."
 metadata:
   openclaw:
     emoji: "📄"
 ---
 
-# Document Cog - Professional Documents Powered by CellCog
+# Docs Cog - Professional Documents Powered by CellCog
 
-Create any document with AI - from business contracts to resumes to marketing materials. All delivered as polished PDFs.
+**Deep reasoning. Accurate data. Beautiful design.** The three things every great document needs — and most AI gets wrong.
+
+CellCog gets them right: **#1 on DeepResearch Bench (Feb 2026)** for deep reasoning, **SOTA search models** for factually grounded content, and **state-of-the-art PDF generation** that rivals professional design studios. Resumes, contracts, reports, proposals — delivered in minutes, looking like they took days.
 
 ---
 

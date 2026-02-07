@@ -1,14 +1,19 @@
 ---
 name: slides-cog
-description: Presentation generation powered by CellCog. Create PDF presentations, pitch decks, keynotes, slide designs, image slideshows, professional presentations. AI-powered presentation builder.
+description: "Great slides need two things: content worth presenting and design worth looking at. #1 on DeepResearch Bench (Feb 2026) — CellCog researches and fills content mindfully from minimal prompts, no filler. State-of-the-art PDF generation for presentations, pitch decks, keynotes, and slideshows you can present as-is."
 metadata:
   openclaw:
     emoji: "📽️"
 ---
 
-# Slides Cog - Presentations Powered by CellCog
+# Slides Cog - Content Worth Presenting, Design Worth Looking At
 
-Create professional presentations with AI - from pitch decks to keynotes to image slideshows.
+**Great slides need two things: content worth presenting and design worth looking at.** CellCog takes both seriously.
+
+- **Content:** #1 on DeepResearch Bench (Feb 2026) — your prompt can be minimal and CellCog will research and fill in the substance mindfully, not just pad slides with filler
+- **Design:** State-of-the-art PDF generation — we've invested heavily in making every slide presentation-ready, with layouts, typography, and visuals you can present as-is
+
+Pitch decks, keynotes, board presentations, image slideshows — ready to present, not ready to fix.
 
 ---
 

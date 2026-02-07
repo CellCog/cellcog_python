@@ -1,14 +1,16 @@
 ---
 name: video-cog
-description: AI video generation powered by CellCog. Marketing videos, explainer videos, educational content, documentary style, cinematic, UGC, news videos, lipsync, spokesperson videos. Create professional videos with AI.
+description: "Long-form AI video production: the frontier of multi-agent coordination. CellCog orchestrates 6-7 foundation models to produce up to 4-minute videos from a single prompt — scripted, filmed, voiced, lipsync'd, scored, and edited automatically. Create marketing videos, product demos, explainer videos, educational content, spokesperson videos, training materials, UGC content, news reports."
 metadata:
   openclaw:
     emoji: "🎬"
 ---
 
-# Video Cog - AI Video Generation Powered by CellCog
+# Video Cog - The Frontier of Multi-Agent Video Production
 
-Create professional videos with AI - from marketing clips to educational content to cinematic shorts.
+**Long-form AI video production is the hardest challenge in multi-agent coordination.** CellCog may be the only platform that pulls it off.
+
+6-7 foundation models orchestrated to produce up to 4-minute videos from a single prompt: script writing, scene generation, voice synthesis, lipsync, music scoring, and editing — all automatic. Marketing videos, product demos, explainers, educational content, AI spokesperson videos, UGC, news reports, and more.
 
 ---
 

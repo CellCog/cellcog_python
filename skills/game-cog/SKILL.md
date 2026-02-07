@@ -1,14 +1,16 @@
 ---
 name: game-cog
-description: Game development powered by CellCog. Create game assets, sprites, character designs, game concepts, level design, game art, indie game development, game prototypes. AI-powered game creation tools.
+description: "Other tools generate sprites. CellCog builds game worlds. #1 on DeepResearch Bench (Feb 2026) for deep game design reasoning — character-consistent art, sprites, tilesets, music, UI, 3D models, GDDs, level design, and game prototypes, all cohesive across every asset."
 metadata:
   openclaw:
     emoji: "🎮"
 ---
 
-# Game Cog - Game Development Powered by CellCog
+# Game Cog - Build Game Worlds, Not Just Sprites
 
-Create games and game assets with AI - from concept art to sprites to full game prototypes.
+**Other tools generate sprites. CellCog builds game worlds.** #1 on DeepResearch Bench (Feb 2026) for deep game design reasoning.
+
+Game development is a multi-discipline problem — mechanics, art, music, UI, and level design all need to feel unified. CellCog reasons deeply about your game's vision first, then produces character-consistent art, tilesets, music, sound effects, UI elements, 3D models, and full game design documents — all cohesive from a single brief.
 
 ---
 

@@ -1,14 +1,18 @@
 ---
 name: pod-cog
-description: Podcast production powered by CellCog. Create podcast content, episode scripts, show notes, podcast intros, audiograms, podcast planning, interview prep, podcast transcripts. AI-powered podcast creation.
+description: "A great podcast needs three things: compelling content, natural-sounding voices, and polished production. CellCog delivers all three — #1 on DeepResearch Bench (Feb 2026) for script depth, frontier multi-voice dialogue, and automatic music + editing. Podcast production, episode scripts, show notes, interview prep, audiograms — single prompt to finished MP3."
 metadata:
   openclaw:
     emoji: "🎙️"
 ---
 
-# Pod Cog - Podcast Production Powered by CellCog
+# Pod Cog - Complete Podcast Production
 
-Create everything you need for your podcast - from scripts to show notes to audiograms.
+**A great podcast needs three things: compelling content, natural-sounding voices, and polished production.** CellCog delivers all three.
+
+- **Content quality:** #1 on DeepResearch Bench (Feb 2026) — scripts built on deep reasoning, not surface-level takes
+- **Voice quality:** Frontier multi-voice dialogue with natural delivery, emotion, and pacing across distinct speakers
+- **Production quality:** Automatic intro/outro music generation, mixing, and final MP3 delivery — all from a single prompt
 
 ---
 

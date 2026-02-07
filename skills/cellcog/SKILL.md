@@ -339,29 +339,30 @@ except AuthenticationError:
 
 ---
 
-## Satellite Skills
+## What CellCog Can Do
 
-Install capability-specific skills to explore what CellCog can do:
+Install satellite skills to explore specific capabilities. Each one is built on CellCog's core strengths — deep reasoning, multi-modal output, and frontier models.
 
-| Skill | What It Does |
-|-------|-------------|
-| `research-cog` | Deep research, market analysis, competitive intelligence |
-| `video-cog` | AI video generation, lipsync, marketing videos |
-| `image-cog` | Image generation, consistent characters, style transfer |
-| `audio-cog` | Text-to-speech (8 voices), music generation |
-| `dash-cog` | Interactive dashboards, data visualization |
-| `slides-cog` | Presentations, pitch decks (PDF default) |
-| `sheet-cog` | Spreadsheets, financial models |
-| `meme-cog` | AI meme generation |
-| `pod-cog` | Full podcast production with multi-voice dialogue |
-| `brand-cog` | Brand identity, logos, color palettes |
-| `comi-cog` | Comics, manga, webtoons |
-| `docs-cog` | PDFs — resumes, contracts, reports |
-| `game-cog` | Game assets, sprites, game design documents |
-| `insta-cog` | Instagram/TikTok content |
-| `learn-cog` | Tutoring, study guides, homework help |
-| `story-cog` | Fiction, screenplays, world building |
-| `think-cog` | Collaborative thinking partner |
-| `tube-cog` | YouTube — Shorts, tutorials, thumbnails |
+| Skill | Philosophy |
+|-------|-----------|
+| `research-cog` | #1 on DeepResearch Bench (Feb 2026). The deepest reasoning applied to research. |
+| `video-cog` | The frontier of multi-agent coordination. 6-7 foundation models, one prompt, up to 4-minute videos. |
+| `cine-cog` | If you can imagine it, CellCog can film it. Grand cinema, accessible to everyone. |
+| `insta-cog` | Script, shoot, stitch, score — automatically. Full video production for social media. |
+| `image-cog` | Consistent characters across scenes. The most advanced image generation suite. |
+| `music-cog` | Original music, fully yours. 5 seconds to 10 minutes. Instrumental and perfect vocals. |
+| `audio-cog` | 8 frontier voices. Speech that sounds human, not generated. |
+| `pod-cog` | Compelling content, natural voices, polished production. Single prompt to finished podcast. |
+| `meme-cog` | Deep reasoning makes better comedy. Create memes that actually land. |
+| `brand-cog` | Other tools make logos. CellCog builds brands. Deep reasoning + widest modality. |
+| `docs-cog` | Deep reasoning. Accurate data. Beautiful design. Professional documents in minutes. |
+| `slides-cog` | Content worth presenting, design worth looking at. Minimal prompt, maximal slides. |
+| `sheet-cog` | Built by the same Coding Agent that builds CellCog itself. Engineering-grade spreadsheets. |
+| `dash-cog` | Interactive dashboards and data visualizations. Built with real code, not templates. |
+| `game-cog` | Other tools generate sprites. CellCog builds game worlds. Every asset cohesive. |
+| `learn-cog` | The best tutors explain the same concept five different ways. CellCog does too. |
+| `comi-cog` | Character-consistent comics. Same face, every panel. Manga, webtoons, graphic novels. |
+| `story-cog` | Deep reasoning for deep stories. World building, characters, and narratives with substance. |
+| `think-cog` | Your Alfred. Iteration, not conversation. Think → Do → Review → Repeat. |
 
 **This mothership skill shows you HOW to call CellCog. Satellite skills show you WHAT's possible.**
