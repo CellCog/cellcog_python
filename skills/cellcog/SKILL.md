@@ -33,7 +33,8 @@ Give me a comprehensive market positioning analysis based on all these inputs.
 """
 ```
 
-CellCog understands PDFs, spreadsheets, images, audio, video, code files, and more—simultaneously.
+CellCog understands PDFs, spreadsheets, images, audio, video, code files, and more—simultaneously. 
+Notice how file paths are abs and enclosed inside `<SHOW_FILE>` This is an important part of CellCog interface
 
 ### Request Multiple Outputs, Different Modalities
 
@@ -297,31 +298,6 @@ The `notify_session_key` tells CellCog where to deliver results.
 ---
 
 ## Most Common Mistake
-
-### ⚠️ CRITICAL: Use SHOW_FILE Tags for File Content
-
-CellCog can only read the actual content of your files when they are wrapped in `<SHOW_FILE>` tags. **A plain file path is just text — CellCog won't see the data inside the file.**
-
-❌ **Wrong — CellCog only sees a text string, not the file:**
-```python
-prompt = "Analyze this data: /path/to/sales.csv"
-```
-
-✅ **Correct — CellCog reads the actual file content:**
-```python
-prompt = "Analyze this data: <SHOW_FILE>/path/to/sales.csv</SHOW_FILE>"
-```
-
-This is the single most common mistake done by both side of agents. Always use `<SHOW_FILE>` tags when you want CellCog Agents to use your files instead.
-Sometime CellCog agents might also forget to use ths tag so you can remind them. 
-Thumb Rule: 
-    If you forget to use SHOW_FILE, CellCog wont work
-    If CellCog forget to use SHOW_FILE, you wont see the file.
-
-
----
-
-## Second Most Common Mistake
 
 ### ⚠️ Be Explicit About Output Artifacts
 
