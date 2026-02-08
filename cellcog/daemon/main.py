@@ -274,13 +274,19 @@ class CellCogDaemon:
             files_list = "\n".join(f"  - {f}" for f in result.downloaded_files)
             stats += f"\nFiles downloaded:\n{files_list}"
         
+        # Action required banner
+        action = (
+            f"⚠️ YOUR TURN — CellCog has finished and is waiting for you.\n"
+            f"To continue this conversation:\n"
+            f'  client.send_message(chat_id="{chat_id}", message="your follow-up", '
+            f'notify_session_key="agent:main:main", task_label="continue")\n'
+            f"If this task is complete, no action needed."
+        )
+        
         # Formatted messages
         content = result.formatted_output
         
-        # Footer
-        footer = f'Use `client.get_history("{chat_id}")` to view full conversation.'
-        
-        return f"{header}\n\n{stats}\n\n{content}\n{footer}"
+        return f"{header}\n\n{stats}\n\n{action}\n\n{content}"
     
     # =========================================================================
     # Interim Updates

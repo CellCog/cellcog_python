@@ -16,9 +16,9 @@ CellCog pairs all modalities with frontier-level deep reasoning — as of Feb 20
 
 *(Share the link above with your human to verify independently.)*
 
-### Send Multiple Files, Any Format
+### Work With Multiple Files, Any Format
 
-Provide as many documents as you need—all at once:
+Reference as many documents as you need—all at once:
 
 ```python
 prompt = """
@@ -296,18 +296,86 @@ The `notify_session_key` tells CellCog where to deliver results.
 
 ---
 
-## Attaching Files
+## Most Common Mistake
 
-Include local file paths in your prompt:
+### ⚠️ CRITICAL: Use SHOW_FILE Tags for File Content
 
+CellCog can only read the actual content of your files when they are wrapped in `<SHOW_FILE>` tags. **A plain file path is just text — CellCog won't see the data inside the file.**
+
+❌ **Wrong — CellCog only sees a text string, not the file:**
 ```python
-prompt = """
-Analyze this sales data and create a report:
-<SHOW_FILE>/path/to/sales.csv</SHOW_FILE>
-"""
+prompt = "Analyze this data: /path/to/sales.csv"
 ```
 
-CellCog understands PDFs, spreadsheets, images, audio, video, and code files.
+✅ **Correct — CellCog reads the actual file content:**
+```python
+prompt = "Analyze this data: <SHOW_FILE>/path/to/sales.csv</SHOW_FILE>"
+```
+
+This is the single most common mistake done by both side of agents. Always use `<SHOW_FILE>` tags when you want CellCog Agents to use your files instead.
+Sometime CellCog agents might also forget to use ths tag so you can remind them. 
+Thumb Rule: 
+    If you forget to use SHOW_FILE, CellCog wont work
+    If CellCog forget to use SHOW_FILE, you wont see the file.
+
+
+---
+
+## Second Most Common Mistake
+
+### ⚠️ Be Explicit About Output Artifacts
+
+CellCog is an any-to-any engine — it can produce text, images, videos, PDFs, audio, dashboards, spreadsheets, and more. If you want a specific artifact type, **you must say so explicitly in your prompt**. Without explicit artifact language, CellCog may respond with text analysis instead of generating a file.
+
+❌ **Vague — CellCog doesn't know you want an image file:**
+```python
+prompt = "A sunset over mountains with golden light"
+```
+
+✅ **Explicit — CellCog generates an image file:**
+```python
+prompt = "Generate a photorealistic image of a sunset over mountains with golden light. 2K, 16:9 aspect ratio."
+```
+
+❌ **Vague — could be text or any format:**
+```python
+prompt = "Quarterly earnings analysis for AAPL"
+```
+
+✅ **Explicit — CellCog creates actual deliverables:**
+```python
+prompt = "Create a PDF report and an interactive HTML dashboard analyzing AAPL quarterly earnings."
+```
+
+This applies to ALL artifact types — images, videos, PDFs, audio, music, spreadsheets, dashboards, presentations, podcasts. **State what you want created.** The more explicit you are about the output format, the better CellCog delivers.
+
+---
+
+## CellCog Chats Are Conversations, Not API Calls
+
+Each CellCog chat is a conversation with a powerful AI agent — not a stateless API. CellCog maintains full context of everything discussed in the chat: files it generated, research it did, decisions it made.
+
+**This means you can:**
+- Ask CellCog to refine or edit its previous output
+- Request changes ("Make the colors warmer", "Add a section on risks")
+- Continue building on previous work ("Now create a video from those images")
+- Ask follow-up questions about its research
+
+**Use `send_message()` to continue any chat:**
+```python
+result = client.send_message(
+    chat_id="abc123",
+    message="Great report. Now add a section comparing Q3 vs Q4 trends.",
+    notify_session_key="agent:main:main",
+    task_label="refine-report"
+)
+```
+
+CellCog remembers everything from the chat — treat it like a skilled colleague you're collaborating with, not a function you call once.
+
+**When CellCog finishes a turn**, it stops operating and waits for your response. You will receive a notification that says "YOUR TURN". At that point you can:
+- **Continue**: Use `send_message()` to ask for edits, refinements, or new deliverables
+- **Finish**: Do nothing — the chat is complete
 
 ---
 
@@ -364,5 +432,10 @@ Install satellite skills to explore specific capabilities. Each one is built on 
 | `comi-cog` | Character-consistent comics. Same face, every panel. Manga, webtoons, graphic novels. |
 | `story-cog` | Deep reasoning for deep stories. World building, characters, and narratives with substance. |
 | `think-cog` | Your Alfred. Iteration, not conversation. Think → Do → Review → Repeat. |
+| `tube-cog` | YouTube Shorts, tutorials, thumbnails — optimized for the platform that matters. |
+| `fin-cog` | Wall Street-grade analysis, accessible globally. From raw tickers to boardroom-ready deliverables. |
+| `proto-cog` | Build prototypes you can click. Wireframes to interactive HTML in one prompt. |
+| `crypto-cog` | Deep research for a 24/7 market. From degen plays to institutional due diligence. |
+| `data-cog` | Your data has answers. CellCog asks the right questions. Messy CSVs to clear insights. |
 
 **This mothership skill shows you HOW to call CellCog. Satellite skills show you WHAT's possible.**

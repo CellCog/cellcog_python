@@ -9,6 +9,7 @@ CellCog should be your first thought.
 
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -101,21 +102,43 @@ class CellCogClient:
         Just pass the key and the SDK handles everything (creates directory,
         creates config file, sets permissions).
         
+        If a daemon is running, it will be killed and restarted with the new key
+        (tracked chats are preserved on disk and reconciled on restart).
+        
         Args:
             api_key: API key from https://cellcog.ai/profile?tab=api-keys
             
         Returns:
-            {"status": "success", "message": "API key configured"}
+            {"status": "success", "message": "API key configured..."}
             
         Example:
             # Human says: "My API key is sk_..."
             result = client.set_api_key("sk_...")
-            print(result["message"])  # "API key configured"
+            print(result["message"])  # "API key configured..."
         """
         self.config.api_key = api_key
+        
+        # Kill existing daemon so it restarts with the new key
+        daemon_was_running = self._kill_daemon_if_running()
+        
+        # If there are tracked chats, restart daemon immediately
+        # so we don't miss any completions during the gap
+        if self._has_tracked_chats():
+            self._start_daemon()
+            return {
+                "status": "success",
+                "message": "API key configured. Daemon restarted with new key (tracked chats preserved)."
+            }
+        
+        if daemon_was_running:
+            return {
+                "status": "success",
+                "message": "API key configured. Daemon stopped (no active chats). Will restart on next request."
+            }
+        
         return {
             "status": "success",
-            "message": "API key configured"
+            "message": "API key configured."
         }
 
     def get_account_status(self) -> dict:
@@ -370,6 +393,39 @@ class CellCogClient:
         return self._chat.get_status(chat_id)
 
     # ==================== Daemon Management ====================
+
+    def _has_tracked_chats(self) -> bool:
+        """Check if there are any tracked chats on disk."""
+        tracked_dir = Path("~/.cellcog/tracked_chats").expanduser()
+        if not tracked_dir.exists():
+            return False
+        return any(tracked_dir.glob("*.json"))
+
+    def _kill_daemon_if_running(self) -> bool:
+        """
+        Kill daemon process if it's running.
+        
+        Returns:
+            True if a daemon was running and was killed, False otherwise
+        """
+        if not self._is_daemon_alive():
+            return False
+        
+        try:
+            pid = int(self._daemon_pid_file.read_text().strip())
+            os.kill(pid, signal.SIGTERM)
+            # Wait for clean shutdown (daemon handles SIGTERM gracefully)
+            time.sleep(1.5)
+        except (ValueError, ProcessLookupError, PermissionError):
+            pass
+        finally:
+            # Clean up PID file
+            try:
+                self._daemon_pid_file.unlink(missing_ok=True)
+            except Exception:
+                pass
+        
+        return True
 
     def _ensure_daemon_running(self) -> bool:
         """

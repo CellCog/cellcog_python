@@ -147,6 +147,12 @@ result = client.create_chat(
 | 📖 Stories | `story-cog` | Fiction, screenplays, world building |
 | 💭 Thinking | `think-cog` | Collaborative problem-solving |
 | 📺 YouTube | `tube-cog` | Shorts, tutorials, thumbnails |
+| 🎬 Cinematics | `cine-cog` | Grand widescreen cinematics, short films, brand films |
+| 🎶 Music | `music-cog` | Original music — instrumentals, vocals, scores, jingles |
+| 💰 Finance | `fin-cog` | Stock analysis, valuation models, portfolio optimization |
+| ✏️ Prototyping | `proto-cog` | UI/UX wireframes, interactive HTML prototypes |
+| 🪙 Crypto | `crypto-cog` | Token analysis, DeFi research, on-chain metrics |
+| 🔢 Data Science | `data-cog` | Data cleaning, statistical analysis, visualization, ML |
 
 ## OpenClaw Integration
 
