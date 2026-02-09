@@ -55,17 +55,28 @@ class FileProcessor:
             attrs = match.group(1)
             file_path = match.group(2).strip()
 
-            # Only process if it's a local path that exists
-            if file_path.startswith("/") and os.path.exists(file_path):
-                try:
-                    blob_name = self._upload_file(file_path)
-                    uploaded.append({"local": file_path, "blob": blob_name})
+            # Skip empty paths and URLs — not local files
+            if not file_path or file_path.startswith(("http://", "https://")):
+                return match.group(0)
 
-                    # Add external_local_path to preserve original path for history restoration
-                    return f'<SHOW_FILE external_local_path="{file_path}">{blob_name}</SHOW_FILE>'
-                except FileUploadError:
-                    # If upload fails, keep original (will fail on CellCog side)
-                    return match.group(0)
+            # Cross-platform local file detection:
+            # Instead of pattern-matching path formats (Unix /, Windows C:\, UNC \\, relative),
+            # we simply ask the OS if the file exists. This handles all platforms and path styles
+            # including relative paths without a leading slash.
+            try:
+                if os.path.exists(file_path):
+                    try:
+                        blob_name = self._upload_file(file_path)
+                        uploaded.append({"local": file_path, "blob": blob_name})
+
+                        # Add external_local_path to preserve original path for history restoration
+                        return f'<SHOW_FILE external_local_path="{file_path}">{blob_name}</SHOW_FILE>'
+                    except FileUploadError:
+                        # If upload fails, keep original (will fail on CellCog side)
+                        return match.group(0)
+            except (OSError, ValueError):
+                # os.path.exists() can raise on severely malformed paths
+                pass
 
             # Not a local file - return unchanged
             return match.group(0)

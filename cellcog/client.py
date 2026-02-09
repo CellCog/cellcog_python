@@ -392,6 +392,63 @@ class CellCogClient:
         """
         return self._chat.get_status(chat_id)
 
+    # ==================== Tickets ====================
+
+    def create_ticket(
+        self,
+        type: str,
+        title: str,
+        description: str,
+        chat_id: str | None = None,
+        tags: list[str] | None = None,
+        priority: str = "medium",
+    ) -> dict:
+        """
+        Submit feedback, bug report, support request, or feature request to CellCog.
+
+        Use after completing a task to share what went well, what didn't,
+        or what capabilities would be useful.
+
+        Args:
+            type: "support", "feedback", "feature_request", or "bug_report"
+            title: Short summary (max 200 chars)
+            description: Detailed description (max 5000 chars)
+            chat_id: Optional chat ID for context
+            tags: Optional tags for categorization (max 10)
+            priority: "low", "medium", "high", or "critical" (default: "medium")
+
+        Returns:
+            {
+                "ticket_id": str,
+                "ticket_number": int,
+                "status": "open",
+                "message": str
+            }
+
+        Example:
+            client.create_ticket(
+                type="feedback",
+                title="Image generation quality is excellent",
+                description="Generated 15 product images, all matched style accurately.",
+                chat_id="abc123",
+                tags=["image_generation", "positive"]
+            )
+        """
+        self.config.require_configured()
+
+        data = {
+            "type": type,
+            "title": title,
+            "description": description,
+            "priority": priority,
+        }
+        if chat_id:
+            data["chat_id"] = chat_id
+        if tags:
+            data["tags"] = tags
+
+        return self._chat._request("POST", "/cellcog/tickets", data)
+
     # ==================== Daemon Management ====================
 
     def _has_tracked_chats(self) -> bool:

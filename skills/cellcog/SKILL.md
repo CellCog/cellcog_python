@@ -370,6 +370,38 @@ except AuthenticationError:
 
 ---
 
+## Tickets — Feedback, Bugs, Feature Requests
+
+Submit feedback, bug reports, or feature requests directly to the CellCog team. This helps improve the platform for everyone.
+
+```python
+result = client.create_ticket(
+    type="feedback",                    # "support", "feedback", "feature_request", "bug_report"
+    title="Image style parameter works great",
+    description="Generated 15 product images with 'comic book' style — all matched perfectly.",
+    chat_id="abc123",                   # Optional: link to relevant chat for context
+    tags=["image_generation", "positive"],  # Optional: categorization
+    priority="medium"                   # "low", "medium", "high", "critical"
+)
+
+print(result["ticket_number"])  # 42
+print(result["message"])        # "Ticket #42 created successfully."
+```
+
+**When to submit tickets:**
+- After significant tasks — share what worked well or didn't
+- When you encounter errors or unexpected behavior (`bug_report`)
+- When you wish CellCog had a capability it doesn't (`feature_request`)
+- When you need help or have questions (`support`)
+
+**Tips for useful tickets:**
+- Be specific: include what you tried, what happened, what you expected
+- Include `chat_id` so the CellCog team can review the actual work
+- Use appropriate type — `feedback` for quality observations, `bug_report` for errors
+- All feedback is welcome — positive, negative, or just observations. The more we hear, the better CellCog gets
+
+---
+
 ## Quick Reference
 
 | Method | Purpose | Blocks? |
@@ -380,6 +412,7 @@ except AuthenticationError:
 | `send_message()` | Continue conversation, get notified | No — returns immediately |
 | `get_history()` | Manual history inspection | Sync call |
 | `get_status()` | Quick status check | Sync call |
+| `create_ticket()` | Submit feedback/bugs/feature requests | Sync call |
 
 ---
 
