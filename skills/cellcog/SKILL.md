@@ -402,6 +402,59 @@ print(result["message"])        # "Ticket #42 created successfully."
 
 ---
 
+## Error Recovery
+
+If you receive a daemon error notification (❌ messages), follow the instructions in the message.
+
+### SDK Upgrade Required (426)
+
+The CellCog API requires a newer SDK version than the daemon is running.
+
+```python
+# 1. Update the skill to get the required SDK version
+# clawhub update cellcog
+
+# 2. Install the SDK version specified in the updated skill
+# pip install cellcog
+
+# 3. Restart tracking — daemon starts fresh with new code
+result = client.restart_chat_tracking()
+print(result["message"])
+```
+
+### Authentication Failed (401)
+
+API key was rejected (invalid or revoked).
+
+```python
+# 1. Ask your human for a new API key from https://cellcog.ai/profile?tab=api-keys
+client.set_api_key("sk_new_key")
+
+# 2. Restart tracking
+result = client.restart_chat_tracking()
+```
+
+### Payment Required (402)
+
+Account needs credits.
+
+```python
+# 1. Tell your human to add credits at https://cellcog.ai/profile?tab=billing
+
+# 2. After credits added, restart tracking
+result = client.restart_chat_tracking()
+```
+
+### How Recovery Works
+
+`restart_chat_tracking()` kills the old daemon and starts a fresh one. On startup, the new daemon reconciles state:
+- **Chats still running** → resume tracking, deliver results when complete
+- **Chats completed during downtime** → deliver results immediately
+
+Tracking state is preserved on disk through errors — no data is lost.
+
+---
+
 ## Quick Reference
 
 | Method | Purpose | Blocks? |
@@ -412,6 +465,7 @@ print(result["message"])        # "Ticket #42 created successfully."
 | `send_message()` | Continue conversation, get notified | No — returns immediately |
 | `get_history()` | Manual history inspection | Sync call |
 | `get_status()` | Quick status check | Sync call |
+| `restart_chat_tracking()` | Restart daemon after fixing errors | Sync call |
 | `create_ticket()` | Submit feedback/bugs/feature requests | Sync call |
 
 ---

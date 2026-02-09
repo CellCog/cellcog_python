@@ -199,10 +199,7 @@ class CellCogClient:
         """
         self.config.require_configured()
         
-        # Ensure daemon is running
-        self._ensure_daemon_running()
-        
-        # Create the chat via API (uses existing ChatManager)
+        # 1. Create the chat via API
         api_result = self._chat.create(prompt, project_id, chat_mode)
         chat_id = api_result["chat_id"]
         
@@ -212,13 +209,18 @@ class CellCogClient:
             "http://127.0.0.1:18789"
         )
         
-        # Create tracking file for daemon
+        # 2. Write tracking file BEFORE starting daemon
+        #    This ensures the daemon finds the tracking file during reconcile_state().
+        #    If we started daemon first, it could exit before the tracking file exists.
         tracking_info = self._track_chat(
             chat_id=chat_id,
             session_key=notify_session_key,
             gateway_url=gateway_url,
             task_label=task_label
         )
+        
+        # 3. Now ensure daemon is running (tracking file already on disk)
+        self._ensure_daemon_running()
         
         # Build helpful explanation
         explanation = (
@@ -232,7 +234,7 @@ class CellCogClient:
         result = {
             "chat_id": chat_id,
             "status": "tracking",
-            "daemon_listening": tracking_info["daemon_active"],
+            "daemon_listening": self._is_daemon_alive(),
             "listeners": tracking_info["listeners"],
             "explanation": explanation
         }
@@ -273,10 +275,7 @@ class CellCogClient:
         """
         self.config.require_configured()
         
-        # Ensure daemon is running
-        self._ensure_daemon_running()
-        
-        # Send message via API (uses existing ChatManager)
+        # 1. Send message via API
         api_result = self._chat.send_message(chat_id, message)
         
         # Resolve gateway URL and task label
@@ -286,13 +285,16 @@ class CellCogClient:
         )
         task_label = task_label or f"continue-{chat_id[:8]}"
         
-        # Add to tracking (creates or updates file)
+        # 2. Write tracking file BEFORE starting daemon
         tracking_info = self._track_chat(
             chat_id=chat_id,
             session_key=notify_session_key,
             gateway_url=gateway_url,
             task_label=task_label
         )
+        
+        # 3. Now ensure daemon is running (tracking file already on disk)
+        self._ensure_daemon_running()
         
         explanation = (
             f"✓ Message sent to chat {chat_id}\n"
@@ -304,7 +306,7 @@ class CellCogClient:
         result = {
             "chat_id": chat_id,
             "status": "tracking",
-            "daemon_listening": tracking_info["daemon_active"],
+            "daemon_listening": self._is_daemon_alive(),
             "listeners": tracking_info["listeners"],
             "explanation": explanation
         }
@@ -391,6 +393,72 @@ class CellCogClient:
             }
         """
         return self._chat.get_status(chat_id)
+
+    # ==================== Chat Tracking Recovery ====================
+
+    def restart_chat_tracking(self) -> dict:
+        """
+        Restart the background daemon for chat tracking.
+        
+        Call after fixing daemon errors:
+        - SDK upgrade: clawhub update cellcog + pip install → restart_chat_tracking()
+        - API key change: set_api_key("sk_...") → restart_chat_tracking()
+        - Credits added: restart_chat_tracking()
+        
+        The daemon reconciles state on startup:
+        - Chats still running → resume tracking
+        - Chats completed while daemon was down → deliver results immediately
+        
+        Returns:
+            {
+                "status": "restarted" | "no_tracked_chats" | "failed",
+                "tracked_chats": int,
+                "message": str
+            }
+        
+        Example:
+            # After upgrading SDK:
+            # clawhub update cellcog
+            # pip install cellcog==1.0.3
+            result = client.restart_chat_tracking()
+            print(result["message"])
+        """
+        self.config.require_configured()
+        
+        # Kill existing daemon
+        self._kill_daemon_if_running()
+        
+        # Count tracking files to report
+        tracked_dir = Path("~/.cellcog/tracked_chats").expanduser()
+        tracked_count = sum(1 for _ in tracked_dir.glob("*.json")) if tracked_dir.exists() else 0
+        
+        if tracked_count == 0:
+            return {
+                "status": "no_tracked_chats",
+                "tracked_chats": 0,
+                "message": "No chats to track. Daemon will start on next create_chat()."
+            }
+        
+        # Start fresh daemon
+        started = self._start_daemon()
+        
+        from . import __version__
+        if started:
+            return {
+                "status": "restarted",
+                "tracked_chats": tracked_count,
+                "message": (
+                    f"Daemon restarted with SDK v{__version__}. "
+                    f"Reconciling {tracked_count} tracked chat(s). "
+                    f"Results will be delivered automatically."
+                )
+            }
+        else:
+            return {
+                "status": "failed",
+                "tracked_chats": tracked_count,
+                "message": "Failed to start daemon. Check ~/.cellcog/daemon.log"
+            }
 
     # ==================== Tickets ====================
 
@@ -486,19 +554,48 @@ class CellCogClient:
 
     def _ensure_daemon_running(self) -> bool:
         """
-        Ensure the daemon process is running.
+        Ensure the daemon process is running with current SDK version.
         
         Called before create_chat() and send_message() to ensure
-        the daemon is alive and will process completions.
+        the daemon is alive and running the same SDK version.
+        If a version mismatch is detected (e.g., after pip install),
+        the old daemon is killed and a fresh one is started.
         
         Returns:
             True if daemon is running (or was started)
         """
         if self._is_daemon_alive():
+            # Check if running daemon matches current SDK version
+            if self._is_daemon_version_stale():
+                from . import __version__
+                print(f"Daemon version mismatch detected, restarting with SDK v{__version__}...", file=sys.stderr)
+                self._kill_daemon_if_running()
+                return self._start_daemon()
             return True
         
         # Start daemon
         return self._start_daemon()
+    
+    def _is_daemon_version_stale(self) -> bool:
+        """
+        Check if running daemon has a different SDK version than current.
+        
+        The daemon writes its version to ~/.cellcog/daemon.version on startup.
+        If this file is missing (pre-version-check daemon) or contains a
+        different version, the daemon is considered stale.
+        
+        Returns:
+            True if daemon should be restarted with current SDK
+        """
+        version_file = Path("~/.cellcog/daemon.version").expanduser()
+        if not version_file.exists():
+            return True  # No version file = old daemon pre-dating this feature
+        try:
+            daemon_version = version_file.read_text().strip()
+            from . import __version__
+            return daemon_version != __version__
+        except Exception:
+            return True  # Can't read = assume stale
     
     def _is_daemon_alive(self) -> bool:
         """Check if daemon process is running."""
