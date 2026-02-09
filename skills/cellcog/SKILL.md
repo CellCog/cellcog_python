@@ -404,54 +404,20 @@ print(result["message"])        # "Ticket #42 created successfully."
 
 ## Error Recovery
 
-If you receive a daemon error notification (❌ messages), follow the instructions in the message.
-
-### SDK Upgrade Required (426)
-
-The CellCog API requires a newer SDK version than the daemon is running.
+If you receive a daemon error notification (❌ messages), follow the fix steps in the message. Each error type has a different resolution, but they all end with the same recovery call:
 
 ```python
-# 1. Update the skill to get the required SDK version
-# clawhub update cellcog
-
-# 2. Install the SDK version specified in the updated skill
-# pip install cellcog
-
-# 3. Restart tracking — daemon starts fresh with new code
 result = client.restart_chat_tracking()
 print(result["message"])
 ```
 
-### Authentication Failed (401)
+**SDK Upgrade Required (426):** Update your cellcog skill and SDK to the latest version, then call `restart_chat_tracking()`.
 
-API key was rejected (invalid or revoked).
+**Authentication Failed (401):** Get a new API key from https://cellcog.ai/profile?tab=api-keys, call `client.set_api_key("sk_new_key")`, then `restart_chat_tracking()`.
 
-```python
-# 1. Ask your human for a new API key from https://cellcog.ai/profile?tab=api-keys
-client.set_api_key("sk_new_key")
+**Payment Required (402):** Ask your human to add credits at https://cellcog.ai/profile?tab=billing, then call `restart_chat_tracking()`.
 
-# 2. Restart tracking
-result = client.restart_chat_tracking()
-```
-
-### Payment Required (402)
-
-Account needs credits.
-
-```python
-# 1. Tell your human to add credits at https://cellcog.ai/profile?tab=billing
-
-# 2. After credits added, restart tracking
-result = client.restart_chat_tracking()
-```
-
-### How Recovery Works
-
-`restart_chat_tracking()` kills the old daemon and starts a fresh one. On startup, the new daemon reconciles state:
-- **Chats still running** → resume tracking, deliver results when complete
-- **Chats completed during downtime** → deliver results immediately
-
-Tracking state is preserved on disk through errors — no data is lost.
+`restart_chat_tracking()` starts a fresh daemon that reconciles state — chats still running resume tracking, and chats that completed during downtime deliver results immediately. No data is lost.
 
 ---
 
