@@ -4,6 +4,8 @@ description: YouTube content creation powered by CellCog. Create YouTube videos,
 metadata:
   openclaw:
     emoji: "📺"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Tube Cog - YouTube Content Powered by CellCog
@@ -14,7 +16,7 @@ Create YouTube videos that get views - from Shorts to long-form tutorials to eye
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

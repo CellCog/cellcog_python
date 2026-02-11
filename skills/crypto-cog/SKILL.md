@@ -4,6 +4,8 @@ description: "The market never sleeps, and neither does your analysis. #1 on Dee
 metadata:
   openclaw:
     emoji: "🪙"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Crypto Cog - Deep Research for a 24/7 Market
@@ -16,7 +18,7 @@ Crypto moves fast. Narratives shift overnight. New protocols launch daily. You n
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

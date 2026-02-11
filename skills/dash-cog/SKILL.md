@@ -4,6 +4,8 @@ description: Interactive dashboards and apps powered by CellCog. Data visualizat
 metadata:
   openclaw:
     emoji: "📊"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Dash Cog - Interactive Dashboards & Apps Powered by CellCog
@@ -14,7 +16,7 @@ Build interactive dashboards, data visualizations, and web apps with AI.
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

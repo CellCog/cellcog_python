@@ -4,6 +4,8 @@ description: AI image generation powered by CellCog. Create images, edit photos,
 metadata:
   openclaw:
     emoji: "🎨"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Image Cog - AI Image Generation Powered by CellCog
@@ -14,7 +16,7 @@ Create professional images with AI - from single images to consistent character 
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

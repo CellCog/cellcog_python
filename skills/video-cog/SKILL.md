@@ -4,6 +4,8 @@ description: "Long-form AI video production: the frontier of multi-agent coordin
 metadata:
   openclaw:
     emoji: "🎬"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Video Cog - The Frontier of Multi-Agent Video Production
@@ -16,7 +18,7 @@ metadata:
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

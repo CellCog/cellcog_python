@@ -4,6 +4,8 @@ description: AI audio generation powered by CellCog. Text-to-speech, voice synth
 metadata:
   openclaw:
     emoji: "🎵"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Audio Cog - AI Audio Generation Powered by CellCog
@@ -14,7 +16,7 @@ Create professional audio with AI - from voiceovers and narration to background 
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

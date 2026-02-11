@@ -328,10 +328,13 @@ class CellCogDaemon:
             f"If this task is complete, no action needed."
         )
         
+        # Feedback prompt
+        feedback = f'📝 Feedback? client.create_ticket(type="feedback", title="...", chat_id="{chat_id}")'
+        
         # Formatted messages
         content = result.formatted_output
         
-        return f"{header}\n\n{stats}\n\n{action}\n\n{content}"
+        return f"{header}\n\n{stats}\n\n{action}\n\n{feedback}\n\n{content}"
     
     # =========================================================================
     # Fatal Error Handling
@@ -399,7 +402,7 @@ class CellCogDaemon:
                 f"Your API key was rejected (invalid or revoked).\n\n"
                 f"To fix:\n"
                 f"1. Get new key: https://cellcog.ai/profile?tab=api-keys\n"
-                f'2. client.set_api_key("sk_new_key")\n'
+                f'2. export CELLCOG_API_KEY="sk_new_key"\n'
                 f"3. client.restart_chat_tracking()\n\n"
                 f"Affected tasks:\n{tasks_str}\n\n"
                 f"Tracking state preserved."

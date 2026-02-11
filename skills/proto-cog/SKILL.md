@@ -4,6 +4,8 @@ description: "Build prototypes you can click. UI/UX wireframes, app mockups, and
 metadata:
   openclaw:
     emoji: "✏️"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Proto Cog - Build Prototypes You Can Click
@@ -16,7 +18,7 @@ Every other AI design tool gives you static images. CellCog builds working proto
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

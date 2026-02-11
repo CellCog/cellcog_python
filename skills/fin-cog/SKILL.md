@@ -4,6 +4,8 @@ description: "Wall Street-grade analysis, accessible globally. Deep financial re
 metadata:
   openclaw:
     emoji: "💰"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Fin Cog - Wall Street-Grade Analysis, Accessible Globally
@@ -16,7 +18,7 @@ The best financial analysis has always lived behind Bloomberg terminals, institu
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

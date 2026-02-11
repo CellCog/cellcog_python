@@ -4,6 +4,8 @@ description: "Your data has answers. CellCog asks the right questions. #1 on Dee
 metadata:
   openclaw:
     emoji: "🔢"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Data Cog - Your Data Has Answers, CellCog Finds Them
@@ -16,7 +18,7 @@ Most AI tools return code when you ask about data. CellCog returns answers — a
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

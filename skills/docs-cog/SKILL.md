@@ -4,6 +4,8 @@ description: "Deep reasoning. Accurate data. Beautiful design. The three things 
 metadata:
   openclaw:
     emoji: "📄"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Docs Cog - Professional Documents Powered by CellCog
@@ -16,7 +18,7 @@ CellCog gets them right: **#1 on DeepResearch Bench (Feb 2026)** for deep reason
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

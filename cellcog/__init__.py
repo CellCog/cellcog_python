@@ -6,10 +6,10 @@ CellCog: Any-to-Any for Agents
 Your sub-agent for quality work. Create complex multimodal content through AI orchestration.
 
 v3.0 - Fire-and-Forget Pattern:
+    # Set env var: export CELLCOG_API_KEY="sk_..."
     from cellcog import CellCogClient
 
     client = CellCogClient()
-    client.set_api_key("sk_...")  # Get from https://cellcog.ai/profile?tab=api-keys
     
     # Create chat - returns immediately
     result = client.create_chat(
@@ -29,14 +29,7 @@ File Handling:
         task_label="data-analysis"
     )
 
-    # Request output at specific location
-    client.create_chat(
-        prompt='Create report: <GENERATE_FILE>/path/to/output.pdf</GENERATE_FILE>',
-        notify_session_key="agent:main:main",
-        task_label="report-generation"
-    )
-
-    # Files without GENERATE_FILE auto-download to ~/.cellcog/chats/{chat_id}/...
+    # Generated files auto-download to ~/.cellcog/chats/{chat_id}/...
 """
 
 from .client import CellCogClient
@@ -52,7 +45,7 @@ from .exceptions import (
     SDKUpgradeRequiredError,
 )
 
-__version__ = "1.0.3"
+__version__ = "1.1.1"
 __all__ = [
     "CellCogClient",
     "CellCogError",

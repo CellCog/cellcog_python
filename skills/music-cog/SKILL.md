@@ -4,6 +4,8 @@ description: "Original music, fully yours. 5 seconds to 10 minutes using frontie
 metadata:
   openclaw:
     emoji: "🎶"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Music Cog - Original Music, Fully Yours
@@ -16,7 +18,7 @@ Every track generated is royalty-free and 100% yours to use commercially — You
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

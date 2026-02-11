@@ -12,11 +12,14 @@ pip install cellcog
 
 ## Quick Start
 
+```bash
+export CELLCOG_API_KEY="sk_..."  # Get from https://cellcog.ai/profile?tab=api-keys
+```
+
 ```python
 from cellcog import CellCogClient
 
 client = CellCogClient()
-client.set_api_key("sk_...")  # Get from https://cellcog.ai/profile?tab=api-keys
 
 # Fire-and-forget: returns immediately
 result = client.create_chat(
@@ -41,9 +44,10 @@ No polling. No blocking. Fire and forget.
 
 ## Configuration
 
-```python
-client = CellCogClient()
-client.set_api_key("sk_...")  # SDK handles storage automatically
+Set the `CELLCOG_API_KEY` environment variable:
+
+```bash
+export CELLCOG_API_KEY="sk_..."
 ```
 
 **Get your API key:**
@@ -101,20 +105,9 @@ result = client.create_chat(
 # SDK automatically uploads local files
 ```
 
-### Request Output at Specific Locations
+### Generated Files
 
-```python
-result = client.create_chat(
-    prompt="""
-    Create analysis report:
-    <GENERATE_FILE>/path/to/output/report.pdf</GENERATE_FILE>
-    """,
-    notify_session_key="agent:main:main",
-    task_label="report"
-)
-# SDK transforms GENERATE_FILE → external_local_path
-# CellCog generates the file, SDK downloads to your specified path
-```
+Generated files (PDFs, images, etc.) are automatically downloaded to `~/.cellcog/chats/{chat_id}/`.
 
 ## Chat Modes
 
@@ -159,7 +152,7 @@ result = client.create_chat(
 This SDK is designed for [OpenClaw](https://openclaw.ai) agents. Install skills from ClawHub:
 
 ```bash
-# Mothership (required)
+# Core SDK skill (required)
 clawhub install cellcog
 
 # Install capability-specific skills as needed
@@ -188,7 +181,7 @@ try:
 except PaymentRequiredError as e:
     print(f"Add credits at: {e.subscription_url}")
 except ConfigurationError:
-    print("Run client.set_api_key('sk_...')")
+    print("Set CELLCOG_API_KEY env var")
 except SDKUpgradeRequiredError as e:
     print(f"Upgrade: pip install cellcog=={e.minimum_version}")
 ```

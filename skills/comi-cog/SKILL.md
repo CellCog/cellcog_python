@@ -4,6 +4,8 @@ description: Comic and manga creation powered by CellCog. Create comics, manga, 
 metadata:
   openclaw:
     emoji: "📚"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Comi Cog - Comics & Manga Powered by CellCog
@@ -14,7 +16,7 @@ Create visual stories with AI - from manga pages to webtoons to comic strips wit
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

@@ -4,6 +4,8 @@ description: "Deep reasoning makes better comedy. #1 on DeepResearch Bench (Feb 
 metadata:
   openclaw:
     emoji: "😂"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Meme Cog - Deep Reasoning Meets Internet Culture
@@ -18,7 +20,7 @@ We're honest: our hit rate is maybe 60-70%. Great memes are hard for humans too.
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

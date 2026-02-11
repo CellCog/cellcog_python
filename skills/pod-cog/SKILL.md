@@ -4,6 +4,8 @@ description: "A great podcast needs three things: compelling content, natural-so
 metadata:
   openclaw:
     emoji: "🎙️"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Pod Cog - Complete Podcast Production
@@ -18,7 +20,7 @@ metadata:
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

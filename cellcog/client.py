@@ -13,7 +13,6 @@ import signal
 import subprocess
 import sys
 import time
-import warnings
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -21,6 +20,7 @@ from typing import Optional
 from .auth import AuthManager
 from .chat import ChatManager
 from .config import Config
+from .exceptions import APIError
 from .files import FileProcessor
 from .message_processor import MessageProcessor
 from .daemon.state import TrackedChat, Listener, StateManager
@@ -39,16 +39,13 @@ class CellCogClient:
     - Your session receives notification when complete
 
     Setup:
-        When your human provides their API key:
-        
-        client = CellCogClient()
-        client.set_api_key("sk_...")  # SDK handles file storage
-        
-        Get API key from: https://cellcog.ai/profile?tab=api-keys
+        export CELLCOG_API_KEY="sk_..."
+        # Get key from: https://cellcog.ai/profile?tab=api-keys
 
     Primary Methods (v3.0 - Fire and Forget):
         create_chat() - Create new chat, returns immediately
         send_message() - Send to existing chat, returns immediately
+        delete_chat() - Delete chat and all server data
         get_history() - Get full history (manual inspection)
         get_status() - Quick status check
 
@@ -60,9 +57,6 @@ class CellCogClient:
         from cellcog import CellCogClient
 
         client = CellCogClient()
-
-        # Configure with API key
-        client.set_api_key("sk_...")
 
         # Fire-and-forget: create chat and continue working
         result = client.create_chat(
@@ -94,53 +88,6 @@ class CellCogClient:
 
     # ==================== Configuration ====================
 
-    def set_api_key(self, api_key: str) -> dict:
-        """
-        Store API key provided by human.
-        
-        Simple method for agents - you don't need to know about file paths.
-        Just pass the key and the SDK handles everything (creates directory,
-        creates config file, sets permissions).
-        
-        If a daemon is running, it will be killed and restarted with the new key
-        (tracked chats are preserved on disk and reconciled on restart).
-        
-        Args:
-            api_key: API key from https://cellcog.ai/profile?tab=api-keys
-            
-        Returns:
-            {"status": "success", "message": "API key configured..."}
-            
-        Example:
-            # Human says: "My API key is sk_..."
-            result = client.set_api_key("sk_...")
-            print(result["message"])  # "API key configured..."
-        """
-        self.config.api_key = api_key
-        
-        # Kill existing daemon so it restarts with the new key
-        daemon_was_running = self._kill_daemon_if_running()
-        
-        # If there are tracked chats, restart daemon immediately
-        # so we don't miss any completions during the gap
-        if self._has_tracked_chats():
-            self._start_daemon()
-            return {
-                "status": "success",
-                "message": "API key configured. Daemon restarted with new key (tracked chats preserved)."
-            }
-        
-        if daemon_was_running:
-            return {
-                "status": "success",
-                "message": "API key configured. Daemon stopped (no active chats). Will restart on next request."
-            }
-        
-        return {
-            "status": "success",
-            "message": "API key configured."
-        }
-
     def get_account_status(self) -> dict:
         """
         Check if SDK is configured with valid API key.
@@ -159,7 +106,7 @@ class CellCogClient:
         task_label: str,
         gateway_url: Optional[str] = None,
         project_id: Optional[str] = None,
-        chat_mode: str = "agent team",
+        chat_mode: str = "agent",
     ) -> dict:
         """
         Create a CellCog chat and return immediately.
@@ -168,7 +115,7 @@ class CellCogClient:
         the results to your session when complete.
         
         Args:
-            prompt: Task description (supports SHOW_FILE, GENERATE_FILE tags)
+            prompt: Task description (supports SHOW_FILE tags for file uploads)
             notify_session_key: Your session key for completion notification
             task_label: Human-readable label (appears in notification)
             gateway_url: OpenClaw Gateway URL (default: from OPENCLAW_GATEWAY_URL env)
@@ -260,7 +207,7 @@ class CellCogClient:
         
         Args:
             chat_id: Chat to send to
-            message: Your message (supports SHOW_FILE, GENERATE_FILE)
+            message: Your message (supports SHOW_FILE tags for file uploads)
             notify_session_key: Your session key for notification
             task_label: Label for notification (default: "continue-{chat_id[:8]}")
             gateway_url: OpenClaw Gateway URL
@@ -402,7 +349,7 @@ class CellCogClient:
         
         Call after fixing daemon errors:
         - SDK upgrade: clawhub update cellcog + pip install → restart_chat_tracking()
-        - API key change: set_api_key("sk_...") → restart_chat_tracking()
+        - API key change: update CELLCOG_API_KEY env var → restart_chat_tracking()
         - Credits added: restart_chat_tracking()
         
         The daemon reconciles state on startup:
@@ -708,95 +655,69 @@ class CellCogClient:
             "listeners": listeners_count,
         }
 
-    # ==================== Legacy Methods (Deprecated) ====================
+    # ==================== Data Management ====================
 
-    def create_chat_and_stream(
-        self,
-        prompt: str,
-        session_id: str,
-        main_agent: bool,
-        project_id: Optional[str] = None,
-        chat_mode: str = "agent team",
-        timeout_seconds: int = 600,
-        poll_interval: int = 10,
-    ) -> dict:
+    def delete_chat(self, chat_id: str) -> dict:
         """
-        DEPRECATED: Use create_chat() with notify_session_key instead.
-        
-        Create a new CellCog chat and stream responses until completion.
-        This method blocks until the chat completes or times out.
-        
-        For new code, use the fire-and-forget pattern:
-            result = client.create_chat(
-                prompt="...",
-                notify_session_key="agent:main:main",
-                task_label="my-task"
+        Permanently delete a chat and all associated data from CellCog's servers.
+
+        This is irreversible. All server-side data is purged within ~15 seconds:
+        messages, generated files, containers, metadata — everything.
+
+        Local downloads (files saved to your machine during the chat) are NOT
+        deleted — they belong to you.
+
+        Args:
+            chat_id: Chat to delete (must not be currently operating)
+
+        Returns:
+            {"success": True, "message": str, "chat_id": str}
+
+        Raises:
+            APIError(409): Chat is currently operating or already being deleted
+            ChatNotFoundError: Chat not found
+
+        Example:
+            result = client.delete_chat("abc123")
+            print(result["message"])  # "Chat deletion initiated..."
+        """
+        self.config.require_configured()
+
+        try:
+            result = self._chat._request(
+                "DELETE",
+                f"/cellcog/chat/{chat_id}?confirm=true"
             )
-        """
-        warnings.warn(
-            "create_chat_and_stream() is deprecated. Use create_chat() with "
-            "notify_session_key for fire-and-forget pattern.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        return self._chat.create_chat_and_stream(
-            prompt, session_id, main_agent, project_id, chat_mode, timeout_seconds, poll_interval
-        )
+        except APIError as e:
+            if e.status_code == 409:
+                raise APIError(
+                    409,
+                    f"Cannot delete chat {chat_id}: {e.message}. "
+                    f"Wait for it to finish operating first."
+                )
+            raise
 
-    def send_message_and_stream(
-        self,
-        chat_id: str,
-        message: str,
-        session_id: str,
-        main_agent: bool,
-        timeout_seconds: int = 600,
-        poll_interval: int = 10,
-    ) -> dict:
-        """
-        DEPRECATED: Use send_message() with notify_session_key instead.
-        
-        Send a message and stream responses until completion.
-        This method blocks until the chat completes or times out.
-        
-        For new code, use the fire-and-forget pattern:
-            result = client.send_message(
-                chat_id="...",
-                message="...",
-                notify_session_key="agent:main:main"
-            )
-        """
-        warnings.warn(
-            "send_message_and_stream() is deprecated. Use send_message() with "
-            "notify_session_key for fire-and-forget pattern.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        return self._chat.send_message_and_stream(
-            chat_id, message, session_id, main_agent, timeout_seconds, poll_interval
-        )
+        # Clean up local tracking state (NOT user's downloaded files)
+        self._cleanup_tracking_state(chat_id)
 
-    def stream_unseen_messages_and_wait_for_completion(
-        self,
-        chat_id: str,
-        session_id: str,
-        main_agent: bool,
-        timeout_seconds: int = 600,
-        poll_interval: int = 10,
-    ) -> dict:
+        return result
+
+    def _cleanup_tracking_state(self, chat_id: str):
         """
-        DEPRECATED: The daemon now handles this automatically.
-        
-        Stream unseen messages and wait for completion (no new message sent).
+        Remove local tracking files for a deleted chat.
+        Downloaded files are preserved — they belong to the user.
         """
-        warnings.warn(
-            "stream_unseen_messages_and_wait_for_completion() is deprecated. "
-            "The daemon handles completion notifications automatically.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        return self._chat.stream_unseen_messages_and_wait_for_completion(
-            chat_id, session_id, main_agent, timeout_seconds, poll_interval
-        )
+        import shutil
+
+        # Remove tracking file (daemon will stop monitoring)
+        tracking_file = self._state.get_tracked_file_path(chat_id)
+        if tracking_file.exists():
+            tracking_file.unlink(missing_ok=True)
+
+        # Remove seen indices (no longer relevant)
+        seen_dir = Path("~/.cellcog/chats/{}/{}".format(chat_id, ".seen_indices")).expanduser()
+        if seen_dir.exists():
+            shutil.rmtree(seen_dir, ignore_errors=True)
 
     # ==================== Utility Methods ====================
 

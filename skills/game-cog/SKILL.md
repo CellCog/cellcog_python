@@ -4,6 +4,8 @@ description: "Other tools generate sprites. CellCog builds game worlds. #1 on De
 metadata:
   openclaw:
     emoji: "🎮"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Game Cog - Build Game Worlds, Not Just Sprites
@@ -16,7 +18,7 @@ Game development is a multi-discipline problem — mechanics, art, music, UI, an
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

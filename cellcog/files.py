@@ -23,10 +23,9 @@ class FileProcessor:
     Key responsibilities:
     - Upload local files referenced in SHOW_FILE tags
     - Add external_local_path attribute to track original paths
-    - Transform GENERATE_FILE tags to include external_local_path
     - Download files from CellCog responses to specified locations
     - Transform message content between local paths and blob names
-    - Auto-download files without external_local_path to ~/.cellcog/chats/{chat_id}/
+    - Auto-download files to ~/.cellcog/chats/{chat_id}/
     - Skip downloading files for already-seen messages (optimization)
     """
 
@@ -40,7 +39,6 @@ class FileProcessor:
 
         Operations:
         1. Find SHOW_FILE tags with local paths → upload and add external_local_path
-        2. Find GENERATE_FILE tags → transform to include external_local_path with empty content
 
         Args:
             message: Original message with local file paths
@@ -81,27 +79,11 @@ class FileProcessor:
             # Not a local file - return unchanged
             return match.group(0)
 
-        def replace_generate_file(match):
-            attrs = match.group(1)
-            file_path = match.group(2).strip()
-
-            # Transform GENERATE_FILE to have external_local_path with empty content
-            # This signals to CellCog agent where the file should end up on client's machine
-            return f'<GENERATE_FILE external_local_path="{file_path}"></GENERATE_FILE>'
-
         # Process SHOW_FILE tags - upload local files and track original path
         transformed = re.sub(
             r"<SHOW_FILE([^>]*)>(.*?)</SHOW_FILE>",
             replace_show_file,
             message,
-            flags=re.DOTALL,
-        )
-
-        # Process GENERATE_FILE tags - add external_local_path attribute
-        transformed = re.sub(
-            r"<GENERATE_FILE([^>]*)>(.*?)</GENERATE_FILE>",
-            replace_generate_file,
-            transformed,
             flags=re.DOTALL,
         )
 
@@ -152,7 +134,7 @@ class FileProcessor:
                 external_local_path_match = re.search(r'external_local_path="([^"]*)"', attrs)
 
                 if external_local_path_match:
-                    # User specified path via GENERATE_FILE (or SDK uploaded file)
+                    # User specified path via SDK uploaded file
                     local_path = external_local_path_match.group(1)
                 else:
                     # Auto-generate download path

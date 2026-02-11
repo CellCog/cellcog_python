@@ -4,6 +4,8 @@ description: "Full video production from a single prompt. Script, shoot, stitch,
 metadata:
   openclaw:
     emoji: "📸"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Insta Cog - Full Video Production From a Single Prompt
@@ -16,7 +18,7 @@ No other AI platform generates multi-scene, production-ready Reels and TikToks f
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

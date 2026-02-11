@@ -4,6 +4,8 @@ description: "The best tutors explain the same concept five different ways. Cell
 metadata:
   openclaw:
     emoji: "📚"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Learn Cog - The Tutor That Explains Five Different Ways
@@ -16,7 +18,7 @@ metadata:
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

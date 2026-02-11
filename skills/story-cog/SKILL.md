@@ -4,6 +4,8 @@ description: Creative writing and storytelling powered by CellCog. Create storie
 metadata:
   openclaw:
     emoji: "📖"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Story Cog - Storytelling Powered by CellCog
@@ -14,7 +16,7 @@ Create compelling stories with AI - from short fiction to novels to screenplays 
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

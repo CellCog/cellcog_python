@@ -4,6 +4,8 @@ description: "If you can imagine it, CellCog can film it. Grand widescreen cinem
 metadata:
   openclaw:
     emoji: "🎬"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Cine Cog - Grand Cinema, Accessible to Everyone
@@ -18,7 +20,7 @@ CellCog's mission with Cine-cog: **make the grandest visual storytelling availab
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

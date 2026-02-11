@@ -4,6 +4,8 @@ description: "Other tools make logos. CellCog builds brands. #1 on DeepResearch 
 metadata:
   openclaw:
     emoji: "🏷️"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Brand Cog - Build Brands, Not Just Logos
@@ -16,7 +18,7 @@ Brand building demands two things: deep understanding of your positioning, audie
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

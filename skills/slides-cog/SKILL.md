@@ -4,6 +4,8 @@ description: "Great slides need two things: content worth presenting and design 
 metadata:
   openclaw:
     emoji: "📽️"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Slides Cog - Content Worth Presenting, Design Worth Looking At
@@ -19,7 +21,7 @@ Pitch decks, keynotes, board presentations, image slideshows — ready to presen
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

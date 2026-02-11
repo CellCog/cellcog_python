@@ -53,14 +53,8 @@ class Config:
 
     @property
     def api_key(self) -> Optional[str]:
-        """Get API key from config file (preferred) or environment variable (fallback)."""
-        return self._config_data.get("api_key") or os.environ.get("CELLCOG_API_KEY")
-
-    @api_key.setter
-    def api_key(self, value: str) -> None:
-        """Set API key in config file."""
-        self._config_data["api_key"] = value
-        self._save_config()
+        """Get API key from environment variable (primary) or legacy config file (fallback)."""
+        return os.environ.get("CELLCOG_API_KEY") or self._config_data.get("api_key")
 
     @property
     def email(self) -> Optional[str]:
@@ -103,10 +97,8 @@ class Config:
         if not self.is_configured:
             raise ConfigurationError(
                 "CellCog SDK not configured.\n\n"
-                "Add your API key to ~/.openclaw/cellcog.json:\n"
-                "{\n"
-                '  "api_key": "sk_..."\n'
-                "}\n\n"
+                "Set your API key as an environment variable:\n"
+                '  export CELLCOG_API_KEY="sk_..."\n\n'
                 "Get your API key from: https://cellcog.ai/profile?tab=api-keys"
             )
 

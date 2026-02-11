@@ -4,6 +4,8 @@ description: "CellCog is built by its own Coding Agent. That same agent builds y
 metadata:
   openclaw:
     emoji: "📈"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Sheet Cog - Built by the Agent That Builds CellCog
@@ -16,7 +18,7 @@ Full Python access, complex data manipulation, formulas, pivot tables, and finan
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

@@ -1,9 +1,11 @@
 ---
 name: research-cog
 description: "#1 on DeepResearch Bench (Feb 2026). Deep research agent powered by CellCog. Market research, competitive analysis, stock analysis, investment research, academic research with citations."
+author: CellCog
 metadata:
   openclaw:
     emoji: "🔬"
+dependencies: [cellcog]
 ---
 
 # Research Cog - Deep Research Powered by CellCog
@@ -16,7 +18,7 @@ Leaderboard: https://huggingface.co/spaces/muset-ai/DeepResearch-Bench-Leaderboa
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog

@@ -4,6 +4,8 @@ description: "Complex ideas need iteration, not conversation. Think → Do → R
 metadata:
   openclaw:
     emoji: "💭"
+author: CellCog
+dependencies: [cellcog]
 ---
 
 # Think Cog - Your Alfred for Complex Ideas
@@ -18,7 +20,7 @@ For problems where you don't know the answer upfront and the solution emerges th
 
 ## Prerequisites
 
-This skill requires the CellCog mothership skill for SDK setup and API calls.
+This skill requires the `cellcog` skill for SDK setup and API calls.
 
 ```bash
 clawhub install cellcog
