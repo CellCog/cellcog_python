@@ -11,6 +11,7 @@ import requests
 
 from .config import Config
 from .exceptions import (
+    AccountDisabledError,
     APIError,
     AuthenticationError,
     ChatNotFoundError,
@@ -263,6 +264,21 @@ class ChatManager:
                 subscription_url="https://cellcog.ai/profile?tab=billing",
                 email=self.config.email or "unknown",
             )
+
+        if resp.status_code == 403:
+            try:
+                error_data = resp.json()
+                error_type = error_data.get("error_type", "")
+                if error_type in ("email_not_verified", "account_security_flagged", "account_disabled"):
+                    raise AccountDisabledError(
+                        error_type=error_type,
+                        detail=error_data.get("detail", "Account disabled"),
+                        action_url=error_data.get("action_url", "https://cellcog.ai"),
+                        email=error_data.get("email", "unknown"),
+                    )
+            except (ValueError, KeyError):
+                pass
+            # Fall through to generic handler for non-account 403s
 
         if resp.status_code == 401:
             raise AuthenticationError("Invalid or expired API key")

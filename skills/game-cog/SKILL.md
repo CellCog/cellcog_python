@@ -115,6 +115,22 @@ Develop your game ideas:
 > 
 > Reference games: Gardenscapes meets SimCity"
 
+### 3D Models & Assets
+
+Production-ready 3D models in GLB format for your game engine:
+
+- **Characters**: "Create a 3D model of my RPG protagonist"
+- **Weapons & Items**: "Generate 3D weapon models — sword, axe, bow, staff"
+- **Props**: "Create 3D dungeon props — chests, barrels, torches"
+- **Vehicles**: "Build a low-poly spaceship for my mobile game"
+- **Environment pieces**: "Generate 3D trees, rocks, and buildings for my world"
+
+CellCog handles the full pipeline — describe what you want, and it generates optimized reference images then converts to textured 3D models. Batch generation supported (e.g., "create 10 weapon models").
+
+GLB output works with Unity, Unreal, Godot, Three.js, and Blender. Specify poly count and PBR materials for your target platform.
+
+For dedicated 3D generation workflows, also check out `3d-cog`.
+
 ### Sprites & Animation
 
 Assets ready for your game engine:
@@ -145,6 +161,7 @@ Make your game feel polished:
 | **Low Poly 3D** | Stylized 3D games | Geometric, distinctive |
 | **Anime/Manga** | Visual novels, JRPGs | Expressive, stylized |
 | **Realistic** | AAA-style | Detailed, immersive |
+| **3D Models (GLB)** | Game engines, AR/VR | Textured, customizable topology and poly count |
 
 ---
 

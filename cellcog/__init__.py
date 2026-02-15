@@ -34,6 +34,7 @@ File Handling:
 
 from .client import CellCogClient
 from .exceptions import (
+    AccountDisabledError,
     APIError,
     AuthenticationError,
     CellCogError,
@@ -45,10 +46,11 @@ from .exceptions import (
     SDKUpgradeRequiredError,
 )
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 __all__ = [
     "CellCogClient",
     "CellCogError",
+    "AccountDisabledError",
     "AuthenticationError",
     "PaymentRequiredError",
     "ChatNotFoundError",

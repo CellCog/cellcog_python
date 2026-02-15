@@ -513,5 +513,6 @@ Install capability skills to explore specific capabilities. Each one is built on
 | `proto-cog` | Build prototypes you can click. Wireframes to interactive HTML in one prompt. |
 | `crypto-cog` | Deep research for a 24/7 market. From degen plays to institutional due diligence. |
 | `data-cog` | Your data has answers. CellCog asks the right questions. Messy CSVs to clear insights. |
+| `3d-cog` | Other tools need perfect images. CellCog turns ideas into 3D models. Any input to GLB. |
 
 **This skill shows you HOW to use CellCog. Capability skills show you WHAT's possible.**
