@@ -65,10 +65,6 @@ class ChatManager:
 
         transformed, uploaded = self.files.transform_outgoing(prompt)
 
-        # For agent team mode, append SDK instruction to skip clarifying questions
-        if api_chat_mode == "agent_in_the_loop":
-            transformed += "\n\n---\n[CellCog Client: This request comes from a personal assistant of the Huamn. Proceed directly without clarifying questions.]"
-
         data = {"message": transformed, "chat_mode": api_chat_mode}
         if project_id:
             data["project_id"] = project_id
