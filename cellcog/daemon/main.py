@@ -30,6 +30,17 @@ from .delivery import deliver_to_all_listeners, get_gateway_auth, send_to_sessio
 
 log = logging.getLogger(__name__)
 
+# Credit visibility thresholds
+HIGH_USAGE_THRESHOLD = 500      # credits — triggers usage warning in notifications
+LOW_BALANCE_THRESHOLD = 200     # credits — triggers "add more credits" warning
+BILLING_URL = "https://cellcog.ai/profile?tab=billing"
+
+CREDIT_USAGE_WARNINGS = [
+    "Each AI response, image, search, and tool call uses credits",
+    "Long chats accumulate context, making each message progressively more expensive",
+    "After ~1 hour of inactivity, cached context expires — resuming becomes expensive",
+]
+
 
 class CellCogDaemon:
     """
@@ -91,6 +102,12 @@ class CellCogDaemon:
         self.interim_update_interval = 240  # 4 minutes
         self.max_updates_per_chat = 50  # Prevent memory bloat on very long tasks
         self.interim_task: Optional[asyncio.Task] = None
+        
+        # Credit tracking state
+        # Track per-wallet balances from WS events, summed for total display.
+        # Users can have multiple wallets (FREE_DAILY, SUBSCRIPTION, ORG_SUBSCRIPTION).
+        self.wallet_balances: dict[str, int] = {}  # wallet_id → current balance
+        self.chat_credit_accumulators: dict[str, int] = {}  # chat_id → accumulated credits
         
         # Control flag
         self.running = True
@@ -244,7 +261,10 @@ class CellCogDaemon:
             # 1. Get full history
             history = self._get_chat_history(chat_id)
             
-            # 2. Process and notify each listener
+            # 2. Fetch chat credits for the notification
+            chat_credits = self._get_chat_credits(chat_id)
+            
+            # 3. Process and notify each listener
             processor = self._get_message_processor()
             
             for listener in chat.listeners:
@@ -258,10 +278,17 @@ class CellCogDaemon:
                     )
                     
                     # Build notification message
+                    # Sum wallet balances across all tracked wallets (or None if no WS data)
+                    total_wallet_balance = (
+                        sum(self.wallet_balances.values())
+                        if self.wallet_balances else None
+                    )
                     notification = self._build_notification(
                         chat_id=chat_id,
                         task_label=listener.task_label,
-                        result=result
+                        result=result,
+                        chat_credits=chat_credits,
+                        wallet_balance=total_wallet_balance
                     )
                     
                     # Deliver to this listener
@@ -283,7 +310,7 @@ class CellCogDaemon:
                 except Exception as e:
                     log.error(f"Error notifying {listener.session_key}: {e}", exc_info=True)
             
-            # 3. Remove tracking file AFTER successful delivery
+            # 4. Remove tracking file AFTER successful delivery
             self.state.remove_tracked(chat_id)
             log.info(f"Completed processing for {chat_id}")
             
@@ -303,7 +330,9 @@ class CellCogDaemon:
         self,
         chat_id: str,
         task_label: str,
-        result
+        result,
+        chat_credits: Optional[int] = None,
+        wallet_balance: Optional[int] = None
     ) -> str:
         """Build notification message for delivery."""
         
@@ -312,12 +341,21 @@ class CellCogDaemon:
         
         # Stats
         stats = f"Chat ID: {chat_id}"
-        stats += f"\nMessages delivered: {result.delivered_count}"
+        stats += f"\nChat messages delivered: {result.delivered_count}"
+        
+        # Credit info (always present when available)
+        if chat_credits is not None:
+            stats += f"\nChat credits used: {abs(chat_credits)} credits"
+        if wallet_balance is not None:
+            stats += f"\nCellCog wallet balance: {wallet_balance:,} credits"
         
         # Files
         if result.downloaded_files:
             files_list = "\n".join(f"  - {f}" for f in result.downloaded_files)
             stats += f"\nFiles downloaded:\n{files_list}"
+        
+        # Credit warnings (high usage + low balance)
+        credit_warnings = self._build_credit_warnings(chat_credits, wallet_balance)
         
         # Action required banner
         action = (
@@ -334,7 +372,37 @@ class CellCogDaemon:
         # Formatted messages
         content = result.formatted_output
         
-        return f"{header}\n\n{stats}\n\n{action}\n\n{feedback}\n\n{content}"
+        # Assemble notification
+        parts = [header, "", stats]
+        if credit_warnings:
+            parts.extend(["", credit_warnings])
+        parts.extend(["", action, "", feedback, "", content])
+        
+        return "\n".join(parts)
+    
+    def _build_credit_warnings(
+        self,
+        chat_credits: Optional[int],
+        wallet_balance: Optional[int]
+    ) -> str:
+        """Build credit warning messages if thresholds are crossed."""
+        warnings = []
+        
+        # High usage warning (>=500 credits in chat)
+        if chat_credits is not None and abs(chat_credits) >= HIGH_USAGE_THRESHOLD:
+            lines = [f"⚠️ Credit Usage Notice ({abs(chat_credits)} credits used in this chat)"]
+            for tip in CREDIT_USAGE_WARNINGS:
+                lines.append(f"  • {tip}")
+            warnings.append("\n".join(lines))
+        
+        # Low balance warning (<200 credits remaining)
+        if wallet_balance is not None and wallet_balance < LOW_BALANCE_THRESHOLD:
+            warnings.append(
+                f"💳 Low Credit Balance ({wallet_balance} credits remaining)\n"
+                f"Add more credits: {BILLING_URL}"
+            )
+        
+        return "\n\n".join(warnings)
     
     # =========================================================================
     # Fatal Error Handling
@@ -455,6 +523,7 @@ class CellCogDaemon:
         """Clear interim state for a chat."""
         self.agent_updates.pop(chat_id, None)
         self.last_update_delivery.pop(chat_id, None)
+        self.chat_credit_accumulators.pop(chat_id, None)
     
     async def _interim_update_loop(self):
         """
@@ -662,12 +731,34 @@ class CellCogDaemon:
         """Handle incoming WebSocket message."""
         msg_type = msg.get("type")
         data = msg.get("data", {})
+        
+        # Handle wallet balance updates (no chat_id filter — applies globally)
+        # Track per-wallet since users can have multiple wallets (FREE_DAILY, SUBSCRIPTION, etc.)
+        if msg_type == "WALLET_BALANCE_UPDATE":
+            wallet_id = data.get("wallet_id")
+            balance = data.get("balance")
+            if wallet_id and balance is not None:
+                self.wallet_balances[wallet_id] = balance
+                total = sum(self.wallet_balances.values())
+                log.debug(f"Wallet {wallet_id} balance: {balance}, total across wallets: {total}")
+            return
+        
         chat_id = data.get("chat_id")
         
         if not chat_id or chat_id not in self.tracked_chats:
             return
         
         log.debug(f"WS message: type={msg_type}, chat_id={chat_id}")
+        
+        # Track per-chat credit deltas
+        if msg_type == "CHAT_CREDIT_UPDATE":
+            change = data.get("change_amount", 0)
+            if change:
+                self.chat_credit_accumulators[chat_id] = (
+                    self.chat_credit_accumulators.get(chat_id, 0) + change
+                )
+                log.debug(f"Chat {chat_id} credit delta: {change}, total: {self.chat_credit_accumulators[chat_id]}")
+            return
         
         if msg_type == "CHAT_COMPLETED":
             log.info(f"[WebSocket] CHAT_COMPLETED received for {chat_id}")
@@ -891,6 +982,34 @@ class CellCogDaemon:
         )
         resp.raise_for_status()
         return resp.json()
+    
+    def _get_chat_credits(self, chat_id: str) -> Optional[int]:
+        """
+        Get total credits used for a chat.
+        
+        Returns the authoritative total from the API (more reliable than
+        the WebSocket accumulator which may miss events on reconnect).
+        
+        Returns:
+            Total credits (negative = consumed), or None if fetch fails
+        """
+        try:
+            resp = requests.get(
+                f"{self.api_base_url}/cellcog/chat/{chat_id}/credits",
+                headers=self._get_request_headers(),
+                timeout=15
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("total_credits")
+        except Exception as e:
+            log.warning(f"Failed to fetch credits for {chat_id}: {e}")
+            # Fall back to WS accumulator if available
+            ws_credits = self.chat_credit_accumulators.get(chat_id)
+            if ws_credits is not None:
+                log.info(f"Using WS-accumulated credits for {chat_id}: {ws_credits}")
+                return ws_credits
+            return None
     
     # =========================================================================
     # Shutdown

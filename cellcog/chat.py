@@ -256,9 +256,24 @@ class ChatManager:
             raise APIError(0, f"Request failed: {e}")
 
         if resp.status_code == 402:
+            # Parse structured 402 response with payment recovery options
+            top_ups = []
+            billing_url = "https://cellcog.ai/profile?tab=billing"
+            try:
+                error_data = resp.json()
+                detail = error_data.get("detail", {})
+                if isinstance(detail, dict):
+                    payment_options = detail.get("payment_options", {})
+                    top_ups = payment_options.get("top_ups", [])
+                    billing_url = payment_options.get("billing_url", billing_url)
+            except (ValueError, KeyError, AttributeError):
+                pass  # Fall back to defaults
+
             raise PaymentRequiredError(
-                subscription_url="https://cellcog.ai/profile?tab=billing",
+                subscription_url=billing_url,
                 email=self.config.email or "unknown",
+                top_ups=top_ups,
+                billing_url=billing_url,
             )
 
         if resp.status_code == 403:
