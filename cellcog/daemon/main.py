@@ -104,9 +104,6 @@ class CellCogDaemon:
         self.interim_task: Optional[asyncio.Task] = None
         
         # Credit tracking state
-        # Track per-wallet balances from WS events, summed for total display.
-        # Users can have multiple wallets (FREE_DAILY, SUBSCRIPTION, ORG_SUBSCRIPTION).
-        self.wallet_balances: dict[str, int] = {}  # wallet_id → current balance
         self.chat_credit_accumulators: dict[str, int] = {}  # chat_id → accumulated credits
         
         # Control flag
@@ -278,17 +275,12 @@ class CellCogDaemon:
                     )
                     
                     # Build notification message
-                    # Sum wallet balances across all tracked wallets (or None if no WS data)
-                    total_wallet_balance = (
-                        sum(self.wallet_balances.values())
-                        if self.wallet_balances else None
-                    )
                     notification = self._build_notification(
                         chat_id=chat_id,
                         task_label=listener.task_label,
                         result=result,
-                        chat_credits=chat_credits,
-                        wallet_balance=total_wallet_balance
+                        chat_credits=chat_credits.get("total_credits") if isinstance(chat_credits, dict) else chat_credits,
+                        wallet_balance=chat_credits.get("effective_balance") if isinstance(chat_credits, dict) else None,
                     )
                     
                     # Deliver to this listener
@@ -765,15 +757,9 @@ class CellCogDaemon:
         msg_type = msg.get("type")
         data = msg.get("data", {})
         
-        # Handle wallet balance updates (no chat_id filter — applies globally)
-        # Track per-wallet since users can have multiple wallets (FREE_DAILY, SUBSCRIPTION, etc.)
+        # Wallet balance updates — no longer tracked in daemon state.
+        # Effective balance is fetched from the credits API at notification time.
         if msg_type == "WALLET_BALANCE_UPDATE":
-            wallet_id = data.get("wallet_id")
-            balance = data.get("balance")
-            if wallet_id and balance is not None:
-                self.wallet_balances[wallet_id] = balance
-                total = sum(self.wallet_balances.values())
-                log.debug(f"Wallet {wallet_id} balance: {balance}, total across wallets: {total}")
             return
         
         chat_id = data.get("chat_id")
@@ -1016,15 +1002,16 @@ class CellCogDaemon:
         resp.raise_for_status()
         return resp.json()
     
-    def _get_chat_credits(self, chat_id: str) -> Optional[int]:
+    def _get_chat_credits(self, chat_id: str) -> Optional[dict]:
         """
-        Get total credits used for a chat.
+        Get credits info for a chat including effective wallet balance.
         
-        Returns the authoritative total from the API (more reliable than
-        the WebSocket accumulator which may miss events on reconnect).
+        Returns the authoritative data from the API including:
+        - total_credits: net credits used by this chat (negative = consumed)
+        - effective_balance: user's current balance across ALL wallets
         
         Returns:
-            Total credits (negative = consumed), or None if fetch fails
+            Dict with total_credits and effective_balance, or None if fetch fails
         """
         try:
             resp = requests.get(
@@ -1033,15 +1020,9 @@ class CellCogDaemon:
                 timeout=15
             )
             resp.raise_for_status()
-            data = resp.json()
-            return data.get("total_credits")
+            return resp.json()
         except Exception as e:
             log.warning(f"Failed to fetch credits for {chat_id}: {e}")
-            # Fall back to WS accumulator if available
-            ws_credits = self.chat_credit_accumulators.get(chat_id)
-            if ws_credits is not None:
-                log.info(f"Using WS-accumulated credits for {chat_id}: {ws_credits}")
-                return ws_credits
             return None
     
     def _get_credit_recovery_options(self) -> Optional[dict]:
