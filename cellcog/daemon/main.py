@@ -334,74 +334,107 @@ class CellCogDaemon:
         chat_credits: Optional[int] = None,
         wallet_balance: Optional[int] = None
     ) -> str:
-        """Build notification message for delivery."""
-        
-        # Header
-        header = f"✅ {task_label} completed!"
-        
-        # Stats
-        stats = f"Chat ID: {chat_id}"
-        stats += f"\nChat messages delivered: {result.delivered_count}"
-        
-        # Credit info (always present when available)
+        """
+        Build structured notification message for delivery to OpenClaw agents.
+
+        Sections: Why → Response → Chat Details → Account → Next Steps
+        Starts with context about why the agent is receiving this message,
+        then presents CellCog's output, metadata, and actionable next steps.
+        """
+        parts = []
+
+        # ── Why You're Receiving This ──
+        parts.append(f"✅ CellCog has stopped operating on chat \"{task_label}\"")
+        parts.append("")
+        parts.append(
+            "CellCog stops operating on a chat for one of three reasons:\n"
+            "  1. Task completed — the work you requested is done\n"
+            "  2. Clarifying questions — CellCog needs more information to proceed\n"
+            "  3. Roadblock — something prevented completion (e.g., insufficient credits)\n"
+            "\n"
+            "Read the response below to determine which case applies.\n"
+            "If CellCog needs input, send a follow-up message to continue.\n"
+            "If the task is complete, no action needed."
+        )
+
+        # ── Response ──
+        parts.append("")
+        parts.append("── Response ──────────────────────────────────")
+        parts.append("")
+        parts.append(result.formatted_output)
+
+        # ── Chat Details ──
+        parts.append("── Chat Details ──────────────────────────────")
+        parts.append("")
+        parts.append(f"Chat ID: {chat_id}")
         if chat_credits is not None:
-            stats += f"\nChat credits used: {abs(chat_credits)} credits"
-        if wallet_balance is not None:
-            stats += f"\nCellCog wallet balance: {wallet_balance:,} credits"
-        
-        # Files
+            parts.append(f"Credits used: {abs(chat_credits)} credits")
+        parts.append(f"Messages delivered: {result.delivered_count}")
         if result.downloaded_files:
             files_list = "\n".join(f"  - {f}" for f in result.downloaded_files)
-            stats += f"\nFiles downloaded:\n{files_list}"
-        
-        # Credit warnings (high usage + low balance)
-        credit_warnings = self._build_credit_warnings(chat_credits, wallet_balance)
-        
-        # Action required banner
-        action = (
-            f"⚠️ YOUR TURN — CellCog has finished and is waiting for you.\n"
-            f"To continue this conversation:\n"
-            f'  client.send_message(chat_id="{chat_id}", message="your follow-up", '
-            f'notify_session_key="agent:main:main", task_label="continue")\n'
-            f"If this task is complete, no action needed."
+            parts.append(f"Files downloaded:\n{files_list}")
+
+        # ── Account ──
+        if wallet_balance is not None:
+            parts.append("")
+            parts.append("── Account ───────────────────────────────────")
+            parts.append("")
+            parts.append(f"Wallet balance: {wallet_balance:,} credits")
+
+            # Credit warnings with payment links (only shown on low balance)
+            account_warnings = self._build_credit_warnings(chat_credits, wallet_balance)
+            if account_warnings:
+                parts.append("")
+                parts.append(account_warnings)
+
+        # ── Next Steps ──
+        parts.append("")
+        parts.append("── Next Steps ────────────────────────────────")
+        parts.append("")
+        parts.append(
+            f'To continue: client.send_message(chat_id="{chat_id}", message="...", '
+            f'notify_session_key="agent:main:main", task_label="continue")'
         )
-        
-        # Feedback prompt
-        feedback = f'📝 Feedback? client.create_ticket(type="feedback", title="...", chat_id="{chat_id}")'
-        
-        # Formatted messages
-        content = result.formatted_output
-        
-        # Assemble notification
-        parts = [header, "", stats]
-        if credit_warnings:
-            parts.extend(["", credit_warnings])
-        parts.extend(["", action, "", feedback, "", content])
-        
+        parts.append(
+            f'To give feedback: client.create_ticket(type="feedback", title="...", chat_id="{chat_id}")'
+        )
+
         return "\n".join(parts)
-    
+
     def _build_credit_warnings(
         self,
         chat_credits: Optional[int],
         wallet_balance: Optional[int]
     ) -> str:
-        """Build credit warning messages if thresholds are crossed."""
+        """Build credit warning messages with actionable payment links."""
         warnings = []
-        
+
         # High usage warning (>=500 credits in chat)
         if chat_credits is not None and abs(chat_credits) >= HIGH_USAGE_THRESHOLD:
             lines = [f"⚠️ Credit Usage Notice ({abs(chat_credits)} credits used in this chat)"]
             for tip in CREDIT_USAGE_WARNINGS:
                 lines.append(f"  • {tip}")
             warnings.append("\n".join(lines))
-        
-        # Low balance warning (<200 credits remaining)
+
+        # Low balance warning with payment links
         if wallet_balance is not None and wallet_balance < LOW_BALANCE_THRESHOLD:
-            warnings.append(
-                f"💳 Low Credit Balance ({wallet_balance} credits remaining)\n"
-                f"Add more credits: {BILLING_URL}"
-            )
-        
+            recovery = self._get_credit_recovery_options()
+            if recovery and recovery.get("top_ups"):
+                lines = [f"💳 Low balance — add credits instantly:"]
+                for option in recovery["top_ups"]:
+                    lines.append(
+                        f"  • ${option['amount_dollars']} ({option['credits']:,} credits): {option['url']}"
+                    )
+                billing_url = recovery.get("billing_url", BILLING_URL)
+                lines.append(f"  Manage subscription: {billing_url}")
+                warnings.append("\n".join(lines))
+            else:
+                # Fallback if API call fails
+                warnings.append(
+                    f"💳 Low Credit Balance ({wallet_balance:,} credits remaining)\n"
+                    f"Add more credits: {BILLING_URL}"
+                )
+
         return "\n\n".join(warnings)
     
     # =========================================================================
@@ -1011,6 +1044,29 @@ class CellCogDaemon:
                 return ws_credits
             return None
     
+    def _get_credit_recovery_options(self) -> Optional[dict]:
+        """
+        Fetch payment recovery options from backend.
+
+        Calls GET /billing/credit-recovery which returns pre-built Payment Link URLs
+        with the user's client_reference_id embedded.
+
+        Returns:
+            {"top_ups": [{"amount_dollars": int, "credits": int, "url": str}], "billing_url": str}
+            or None if fetch fails
+        """
+        try:
+            resp = requests.get(
+                f"{self.api_base_url}/cellcog/billing/credit-recovery",
+                headers=self._get_request_headers(),
+                timeout=15,
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as e:
+            log.warning(f"Failed to fetch credit recovery options: {e}")
+            return None
+
     # =========================================================================
     # Shutdown
     # =========================================================================

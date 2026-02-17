@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cellcog"
-version = "1.3.0"
+version = "1.5.0"
 description = "Python SDK for CellCog - Any-to-Any AI for agents. Fire-and-forget pattern with WebSocket notifications."
 readme = "README.md"
 license = {text = "MIT"}

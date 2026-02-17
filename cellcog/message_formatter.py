@@ -69,17 +69,8 @@ def format_single_message(
         "<MESSAGE END>",
     ]
     
-    # Add completion indicator after last CellCog message when chat stopped
-    if is_last_cellcog and not is_operating:
-        lines.append("")
-        lines.append(
-            f"[YOUR TURN — CellCog stopped operating on Chat {chat_id}.\n"
-            f"CellCog will NOT send any more messages until you respond.\n"
-            f"To continue: client.send_message(chat_id=\"{chat_id}\", message=\"...\", "
-            f"notify_session_key=\"...\", task_label=\"...\")\n"
-            f"CellCog remembers full context of this chat — you can ask for edits, "
-            f"refinements, or new deliverables.]"
-        )
+    # Completion indicator removed — "Next Steps" section in daemon notification handles this.
+    # This avoids duplicate YOUR TURN blocks in the notification output.
     
     lines.append("")  # Blank line between messages
     

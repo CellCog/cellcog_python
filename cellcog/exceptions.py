@@ -27,6 +27,10 @@ class PaymentRequiredError(CellCogError):
         billing_url: URL to CellCog billing page for subscription management.
         subscription_url: Alias for billing_url (backward compatibility).
         email: User's email address.
+        min_credits_required: Minimum credits required for the attempted chat mode.
+        current_balance: User's current effective credit balance.
+        chat_mode: The chat mode that was attempted ('human_in_the_loop' or 'agent_in_the_loop').
+        chat_mode_display: Human-readable chat mode name ('Agent' or 'Agent-Team').
 
     The top-up URLs are direct Stripe payment links — the human clicks, pays,
     and credits are added automatically. No login required.
@@ -38,14 +42,30 @@ class PaymentRequiredError(CellCogError):
         email: str,
         top_ups: list | None = None,
         billing_url: str | None = None,
+        min_credits_required: int | None = None,
+        current_balance: int | None = None,
+        chat_mode: str | None = None,
+        chat_mode_display: str | None = None,
     ):
         self.top_ups = top_ups or []
         self.billing_url = billing_url or subscription_url
         self.subscription_url = self.billing_url  # backward compatibility
         self.email = email
+        self.min_credits_required = min_credits_required
+        self.current_balance = current_balance
+        self.chat_mode = chat_mode
+        self.chat_mode_display = chat_mode_display
 
         # Build agent-friendly message with actionable links
         lines = ["Payment required. Your CellCog account needs credits to proceed.\n"]
+
+        if self.min_credits_required is not None and self.chat_mode_display:
+            lines.append(
+                f"{self.chat_mode_display} mode requires at least "
+                f"{self.min_credits_required} credits."
+            )
+            if self.current_balance is not None:
+                lines.append(f"Your current balance: {self.current_balance} credits.\n")
 
         if self.top_ups:
             lines.append("Send one of these links to your human for instant credits:")
