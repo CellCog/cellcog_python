@@ -146,6 +146,13 @@ Generated files (PDFs, images, etc.) are automatically downloaded to `~/.cellcog
 | ✏️ Prototyping | `proto-cog` | UI/UX wireframes, interactive HTML prototypes |
 | 🪙 Crypto | `crypto-cog` | Token analysis, DeFi research, on-chain metrics |
 | 🔢 Data Science | `data-cog` | Data cleaning, statistical analysis, visualization, ML |
+| 🧊 3D Models | `3d-cog` | 3D model generation — any input to production-ready GLB |
+| 📝 Resumes | `resume-cog` | ATS-optimized resumes, cover letters, career documents |
+| ⚖️ Legal | `legal-cog` | Contracts, NDAs, terms of service, privacy policies |
+| 🍌 Nano Banana | `nano-banana-cog` | Nano Banana × CellCog image generation |
+| 🌱 Seedance | `seedance-cog` | Seedance × CellCog video production |
+| ✈️ Travel | `travel-cog` | Trip itineraries, travel research, destination planning |
+| 📰 News | `news-cog` | News briefings, competitive intel, trend monitoring |
 
 ## OpenClaw Integration
 
