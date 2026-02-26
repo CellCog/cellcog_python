@@ -153,6 +153,57 @@ class AccountDisabledError(CellCogError):
         super().__init__(self.human_action)
 
 
+class MaxConcurrencyError(CellCogError):
+    """
+    Raised when user has too many parallel chats for their credit balance.
+
+    CellCog limits parallel chats to ensure reliable performance for all users.
+    Each 500 credits of effective balance allows 1 parallel chat slot
+    (minimum 1, maximum 8).
+
+    This is NOT a payment error — it's a temporary condition. Either:
+    1. Wait for a running chat to finish (frees up a slot)
+    2. Add credits to unlock more parallel slots
+
+    Attributes:
+        operating_count: Number of currently running chats.
+        max_parallel: Maximum parallel chats allowed with current balance.
+        effective_balance: User's current effective credit balance.
+        credits_per_slot: Credits required per additional parallel chat.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        operating_count: int = 0,
+        max_parallel: int = 0,
+        effective_balance: int = 0,
+        credits_per_slot: int = 500,
+    ):
+        self.operating_count = operating_count
+        self.max_parallel = max_parallel
+        self.effective_balance = effective_balance
+        self.credits_per_slot = credits_per_slot
+
+        # Build agent-friendly message with context
+        lines = [message, ""]
+        lines.append(
+            f"Concurrency: {operating_count} running / {max_parallel} max "
+            f"(balance: {effective_balance} credits, {credits_per_slot} credits per slot)"
+        )
+        lines.append("")
+        lines.append("Options:")
+        lines.append("  1. Wait for a running chat to finish")
+        lines.append(f"  2. Add credits ({credits_per_slot}+ credits unlocks another slot)")
+        lines.append("")
+        lines.append(
+            "This limit ensures reliable compute for all users. "
+            "It is NOT a payment error — do not present payment links."
+        )
+
+        super().__init__("\n".join(lines))
+
+
 class SDKUpgradeRequiredError(CellCogError):
     """Raised when Python SDK version is too old and backend requires upgrade."""
     

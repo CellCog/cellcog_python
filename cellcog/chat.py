@@ -15,6 +15,7 @@ from .exceptions import (
     APIError,
     AuthenticationError,
     ChatNotFoundError,
+    MaxConcurrencyError,
     PaymentRequiredError,
 )
 from .files import FileProcessor
@@ -310,6 +311,37 @@ class ChatManager:
 
         if resp.status_code == 404:
             raise ChatNotFoundError(f"Chat not found: {path}")
+
+        if resp.status_code == 429:
+            # Parse structured concurrency limit response
+            error_message = "Too many parallel chats running. Please wait for a chat to finish or add credits."
+            operating_count = 0
+            max_parallel = 0
+            effective_balance = 0
+            credits_per_slot = 500
+            try:
+                error_data = resp.json()
+                detail = error_data.get("detail", {})
+                if isinstance(detail, dict):
+                    error_message = detail.get("message", error_message)
+                    context = detail.get("concurrency_context", {})
+                    if context:
+                        operating_count = context.get("operating_count", 0)
+                        max_parallel = context.get("max_parallel", 0)
+                        effective_balance = context.get("effective_balance", 0)
+                        credits_per_slot = context.get("credits_per_slot", 500)
+                elif isinstance(detail, str):
+                    error_message = detail
+            except (ValueError, KeyError, AttributeError):
+                pass
+
+            raise MaxConcurrencyError(
+                message=error_message,
+                operating_count=operating_count,
+                max_parallel=max_parallel,
+                effective_balance=effective_balance,
+                credits_per_slot=credits_per_slot,
+            )
 
         if resp.status_code == 426:
             # SDK upgrade required

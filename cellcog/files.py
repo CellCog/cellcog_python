@@ -21,12 +21,15 @@ class FileProcessor:
     Handles file upload/download and path translation for CellCog SDK.
 
     Key responsibilities:
-    - Upload local files referenced in SHOW_FILE tags
-    - Add external_local_path attribute to track original paths
-    - Download files from CellCog responses to specified locations
+    - Upload local files referenced in SHOW_FILE tags (with early failure on missing files)
+    - Add external_local_path attribute to track original paths for outgoing uploads
+    - Download files from CellCog responses to safe ~/.cellcog/chats/{chat_id}/ location
     - Transform message content between local paths and blob names
-    - Auto-download files to ~/.cellcog/chats/{chat_id}/
     - Skip downloading files for already-seen messages (optimization)
+
+    Security:
+    - Outgoing: Raises FileUploadError if SHOW_FILE references missing local files
+    - Incoming: Always downloads to safe directory, never uses external_local_path for destination
     """
 
     def __init__(self, config: Config):
@@ -39,6 +42,7 @@ class FileProcessor:
 
         Operations:
         1. Find SHOW_FILE tags with local paths → upload and add external_local_path
+        2. Fail early if any referenced local files are missing (prevents broken chats)
 
         Args:
             message: Original message with local file paths
@@ -46,8 +50,13 @@ class FileProcessor:
         Returns:
             (transformed_message, list_of_uploaded_files)
             where each uploaded file is {"local": str, "blob": str}
+
+        Raises:
+            FileUploadError: If any SHOW_FILE references local files that don't exist.
+                This prevents creating broken chats that waste credits.
         """
         uploaded = []
+        missing_files = []
 
         def replace_show_file(match):
             attrs = match.group(1)
@@ -76,7 +85,8 @@ class FileProcessor:
                 # os.path.exists() can raise on severely malformed paths
                 pass
 
-            # Not a local file - return unchanged
+            # File path looks local but doesn't exist — track for early failure
+            missing_files.append(file_path)
             return match.group(0)
 
         # Process SHOW_FILE tags - upload local files and track original path
@@ -86,6 +96,18 @@ class FileProcessor:
             message,
             flags=re.DOTALL,
         )
+
+        # Fail early if any referenced local files are missing
+        if missing_files:
+            files_list = "\n".join(f"  - {path}" for path in missing_files)
+            raise FileUploadError(
+                f"Cannot upload {len(missing_files)} file(s) to CellCog — not found:\n"
+                f"{files_list}\n\n"
+                f"These files may exist on the user's machine but are not accessible "
+                f"from the current environment. If running inside Docker, ensure the "
+                f"file paths are mounted as volumes. If on WSL, ensure cross-filesystem "
+                f"access is available."
+            )
 
         return transformed, uploaded
 
@@ -100,9 +122,13 @@ class FileProcessor:
         Transform incoming chat history from CellCog.
 
         Operations:
-        1. For ALL messages: Replace blob_names with local paths
+        1. For ALL messages: Replace blob_names with safe local paths
         2. For CellCog messages with index > skip_download_until_index: Download files
-        3. Auto-generate download paths for files without external_local_path
+        3. All files download to ~/.cellcog/chats/{chat_id}/ (safe location)
+
+        Security: external_local_path is intentionally ignored for download destinations.
+        All files are downloaded to the safe ~/.cellcog/chats/ directory to prevent
+        arbitrary file writes to the user's filesystem.
 
         Args:
             messages: List of message dicts from CellCog API
@@ -130,15 +156,10 @@ class FileProcessor:
                 attrs = match.group(1)
                 blob_name = match.group(2).strip()
 
-                # Extract external_local_path attribute if present
-                external_local_path_match = re.search(r'external_local_path="([^"]*)"', attrs)
-
-                if external_local_path_match:
-                    # User specified path via SDK uploaded file
-                    local_path = external_local_path_match.group(1)
-                else:
-                    # Auto-generate download path
-                    local_path = self._generate_auto_download_path(blob_name, chat_id)
+                # Always use safe auto-generated download path
+                # Never use external_local_path as download destination to prevent
+                # arbitrary file writes to the user's filesystem
+                local_path = self._generate_auto_download_path(blob_name, chat_id)
 
                 # Only download for CellCog messages we haven't seen yet
                 if is_cellcog_message and should_download and blob_name in blob_name_to_url:
@@ -150,7 +171,7 @@ class FileProcessor:
                         # (file just won't exist)
                         pass
 
-                # Return with resolved local path (remove blob_name)
+                # Return with safe local path (remove blob_name and attributes)
                 return f"<SHOW_FILE>{local_path}</SHOW_FILE>"
 
             transformed_content = re.sub(
@@ -172,7 +193,7 @@ class FileProcessor:
 
     def _generate_auto_download_path(self, blob_name: str, chat_id: str) -> str:
         """
-        Generate download path for files without external_local_path.
+        Generate safe download path under ~/.cellcog/chats/{chat_id}/.
 
         Handles two blob_name formats:
         - {chat_id}//home/app/path/to/file.ext  (double slash = from CellCog's /home/app/)
