@@ -260,11 +260,11 @@ print(status["is_operating"])  # True/False
 | Mode | Best For | Speed | Cost | Min Credits |
 |------|----------|-------|------|-------------|
 | `"agent"` | Most tasks — images, audio, dashboards, spreadsheets, presentations | Fast (seconds to minutes) | 1x | 100 |
-| `"agent team"` | Cutting-edge work — deep research, investor decks, complex videos | Slower (5-60 min) | 4x | 1000 |
+| `"agent team"` | Cutting-edge work — deep research, investor decks, complex videos | Slower (5-60 min) | 4x | 500 |
 
 **Default to `"agent"`** — it's powerful, fast, and handles most tasks even deep research tasks excellently. Requires ≥100 credits.
 
-**Use `"agent team"` when the task requires thinking from multiple angles** — Academic, high stakes, or work that benefits from multiple reasoning passes. Requires ≥1000 credits.
+**Use `"agent team"` when the task requires thinking from multiple angles** — Academic, high stakes, or work that benefits from multiple reasoning passes. Requires ≥500 credits.
 
 ### While CellCog Is Working
 
