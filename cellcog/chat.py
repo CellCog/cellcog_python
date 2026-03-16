@@ -47,7 +47,7 @@ class ChatManager:
         Args:
             prompt: Initial prompt (can include SHOW_FILE tags for file uploads)
             project_id: Optional CellCog project ID
-            chat_mode: "agent team" (deep reasoning) or "agent" (faster)
+            chat_mode: "agent" (fast, iterative), "agent team" (deep reasoning), or "agent team max" (high-stakes)
 
         Returns:
             {
@@ -59,6 +59,7 @@ class ChatManager:
         self.config.require_configured()
 
         mode_mapping = {
+            "agent team max": "agent_team_max",
             "agent team": "agent_in_the_loop",
             "agent": "human_in_the_loop",
         }

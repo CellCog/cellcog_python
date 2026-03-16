@@ -147,10 +147,13 @@ Essential documents for founders:
 | Single contract, NDA, or policy | `"agent"` |
 | Complex multi-document legal packages | `"agent"` |
 | Deep regulatory research or compliance analysis | `"agent team"` |
+| High-stakes contracts, litigation research, regulatory filings | `"agent team max"` |
 
 **Use `"agent"` for most legal documents.** CellCog handles contracts, policies, and standard legal documents excellently in agent mode.
 
 **Use `"agent team"` for complex legal research** — multi-jurisdiction compliance analysis, regulatory deep-dives, or when the legal reasoning itself is the deliverable.
+
+**Use `"agent team max"` for high-stakes legal work** — litigation preparation, M&A due diligence contracts, regulatory compliance for heavily regulated industries, or any legal work where the cost of an error far exceeds the cost of deeper analysis. All settings are maxed for the deepest reasoning. Requires ≥2,000 credits.
 
 ---
 

@@ -65,7 +65,7 @@ result = client.create_chat(
     prompt="Your task...",
     notify_session_key="agent:main:main",
     task_label="my-task",
-    chat_mode="agent",          # "agent" (fast) or "agent team" (deep work)
+    chat_mode="agent",          # "agent" (fast) | "agent team" (deep) | "agent team max" (high-stakes)
     project_id=None             # Optional CellCog project ID
 )
 # Returns: {"chat_id", "status", "explanation", "daemon_listening", "listeners"}
@@ -114,9 +114,10 @@ Generated files (PDFs, images, etc.) are automatically downloaded to `~/.cellcog
 | Mode | Speed | Cost | Best For |
 |------|-------|------|----------|
 | `"agent"` | Fast (seconds–minutes) | 1x | Most tasks — research, images, audio, documents |
-| `"agent team"` | Slower (5–60 minutes) | 4x | Deep work — multi-source research, complex videos, investor decks |
+| `"agent team"` | Slower (5–60 minutes) | 4x | Deep research & multi-angled reasoning, every modality |
+| `"agent team max"` | Slowest | 8x+ | High-stakes work — legal, financial, cutting-edge academic |
 
-**Default to `"agent"`.** Use `"agent team"` when quality requires multiple reasoning passes.
+**Default to `"agent"`.** Use `"agent team"` for deep multi-angled reasoning. Use `"agent team max"` only for high-stakes work where the extra quality justifies the cost (≥2,000 credits).
 
 ## What You Can Create
 

@@ -108,17 +108,19 @@ Specify your preferred format in the prompt:
 
 ---
 
-## When to Use Agent Team Mode
+## Chat Mode for Research
 
-For research, **always use `chat_mode="agent team"`** (the default).
+| Scenario | Recommended Mode |
+|----------|------------------|
+| Trivial lookups, basic facts | `"agent"` |
+| Deep research, competitive analysis, market research, investment analysis | `"agent team"` |
+| Cutting-edge academic research, high-stakes due diligence, institutional-grade analysis | `"agent team max"` |
 
-Agent team mode enables:
-- Multi-source research and cross-referencing
-- Citation verification
-- Deeper analysis with multiple reasoning passes
-- Higher quality, more comprehensive outputs
+**Use `"agent team"` for most research** (the default). Agent team mode enables multi-source research, cross-referencing, citation verification, and deeper analysis with multiple reasoning passes.
 
-Use `chat_mode="agent"` only for trivial lookups like "What's Apple's stock ticker?"
+**Use `"agent"` only for trivial lookups** like "What's Apple's stock ticker?"
+
+**Use `"agent team max"` for cutting-edge academic research and high-stakes due diligence** — when the research directly informs costly decisions (investment thesis, M&A, regulatory compliance, PhD-level analysis). All settings maxed for the deepest reasoning. The quality gain is incremental but meaningful when accuracy is critical. Requires ≥2,000 credits.
 
 ---
 

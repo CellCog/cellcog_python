@@ -131,10 +131,13 @@ Due diligence on new projects:
 |----------|------------------|
 | Quick price checks, simple token lookups, basic metrics | `"agent"` |
 | Deep token analysis, DeFi research, ecosystem mapping, portfolio strategy | `"agent team"` |
+| Institutional due diligence, high-stakes portfolio decisions, regulatory analysis | `"agent team max"` |
 
 **Use `"agent team"` for most crypto research.** The crypto space requires synthesizing information from many sources — protocol docs, on-chain data, market analysis, social sentiment. Agent team mode delivers the multi-source depth that serious crypto research demands.
 
 **Use `"agent"` for quick lookups** — current prices, basic metrics, or simple factual questions.
+
+**Use `"agent team max"` for institutional-grade crypto work** — fund-level due diligence, high-stakes portfolio rebalancing, regulatory compliance research, or any crypto analysis where significant capital is at risk. All settings maxed for the deepest reasoning. Requires ≥2,000 credits.
 
 ---
 

@@ -120,7 +120,7 @@ class CellCogClient:
             task_label: Human-readable label (appears in notification)
             gateway_url: OpenClaw Gateway URL (default: from OPENCLAW_GATEWAY_URL env)
             project_id: Optional CellCog project ID
-            chat_mode: "agent team" (deep work) or "agent" (quick tasks)
+            chat_mode: "agent" (fast, most tasks), "agent team" (deep reasoning), or "agent team max" (high-stakes)
         
         Returns:
             {

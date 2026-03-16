@@ -112,7 +112,8 @@ Use this table to estimate how many credits your human will need:
 | Quick text question (Agent mode) | 50–200 |
 | Image generation | 15–25 per image |
 | Research report (Agent mode) | 200–500 |
-| Deep research (Agent-Team mode) | 500–1,500 |
+| Deep research (Agent Team mode) | 500–1,500 |
+| Deep research (Agent Team Max mode) | 1,500–4,000 |
 | PDF / presentation | 200–1,000 |
 | HTML dashboard / app | 200–2,000 |
 | Video clip (~8 sec) | 100–150 |
@@ -123,7 +124,7 @@ Use this table to estimate how many credits your human will need:
 | 3D model | 80–100 |
 | Meme | ~50 |
 
-Agent-Team mode costs ~4x more than Agent mode for the same task type.
+Agent Team mode costs ~4x more than Agent mode for the same task type. Agent Team Max costs ~8x+ more — use only for high-stakes work.
 
 ---
 
@@ -260,11 +261,19 @@ print(status["is_operating"])  # True/False
 | Mode | Best For | Speed | Cost | Min Credits |
 |------|----------|-------|------|-------------|
 | `"agent"` | Most tasks — images, audio, dashboards, spreadsheets, presentations | Fast (seconds to minutes) | 1x | 100 |
-| `"agent team"` | Cutting-edge work — deep research, investor decks, complex videos | Slower (5-60 min) | 4x | 500 |
+| `"agent team"` | Deep research & multi-angled reasoning across every modality | Slower (5-60 min) | 4x | 500 |
+| `"agent team max"` | High-stakes work where extra reasoning depth justifies the cost | Slowest | 8x+ | 2,000 |
 
-**Default to `"agent"`** — it's powerful, fast, and handles most tasks even deep research tasks excellently. Requires ≥100 credits.
+**Default to `"agent"`** — it's the most versatile mode. Fast, iterative, and handles most tasks excellently — including deep research when you guide it. Requires ≥100 credits.
 
-**Use `"agent team"` when the task requires thinking from multiple angles** — Academic, high stakes, or work that benefits from multiple reasoning passes. Requires ≥500 credits.
+**Use `"agent team"` when the task requires deep, multi-angled reasoning** — the only platform with deep reasoning across every modality. A team of agents that debates, cross-validates, and delivers comprehensive results. Requires ≥500 credits.
+
+**Use `"agent team max"` only for high-stakes work** — legal analysis, financial decisions, cutting-edge academic research. Same Agent Team but with all settings maxed (deeper search, higher reasoning). The quality gain is incremental (5-10%) but meaningful when decisions are costly. Requires ≥2,000 credits.
+
+**When NOT to use each mode:**
+- **Agent**: Avoid when you need deep multi-angled research out of the box (use Agent Team instead).
+- **Agent Team**: Avoid when many iterations are needed — each run costs more. Use Agent for back-and-forth refinement.
+- **Agent Team Max**: Avoid when the marginal quality gain isn't worth the extra time and cost. Prefer Agent Team for most deep research work.
 
 ### While CellCog Is Working
 

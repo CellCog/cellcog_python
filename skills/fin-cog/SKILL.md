@@ -127,10 +127,13 @@ Specify your preferred format in the prompt:
 |----------|------------------|
 | Quick lookups, single stock metrics, basic calculations | `"agent"` |
 | Deep analysis, valuation models, multi-company comparisons, investment research | `"agent team"` |
+| High-stakes investment decisions, M&A due diligence, institutional-grade research | `"agent team max"` |
 
 **Use `"agent team"` for most financial analysis.** Financial work demands deep reasoning, data cross-referencing, and multi-source synthesis. Agent team mode delivers the depth that serious financial analysis requires.
 
 **Use `"agent"` for quick financial lookups** — current stock price, simple calculations, or basic metric checks.
+
+**Use `"agent team max"` for high-stakes financial work** — investment decisions with significant capital at risk, M&A due diligence, regulatory filings, or boardroom-ready deliverables where the extra reasoning depth justifies the cost. Requires ≥2,000 credits.
 
 ---
 

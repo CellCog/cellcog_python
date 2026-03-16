@@ -29,8 +29,8 @@ class PaymentRequiredError(CellCogError):
         email: User's email address.
         min_credits_required: Minimum credits required for the attempted chat mode.
         current_balance: User's current effective credit balance.
-        chat_mode: The chat mode that was attempted ('human_in_the_loop' or 'agent_in_the_loop').
-        chat_mode_display: Human-readable chat mode name ('Agent' or 'Agent-Team').
+        chat_mode: The chat mode that was attempted ('human_in_the_loop', 'agent_in_the_loop', or 'agent_team_max').
+        chat_mode_display: Human-readable chat mode name ('Agent', 'Agent Team', or 'Agent Team Max').
 
     The top-up URLs are direct Stripe payment links — the human clicks, pays,
     and credits are added automatically. No login required.
