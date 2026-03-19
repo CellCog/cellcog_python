@@ -38,6 +38,16 @@ result = client.create_chat(
 
 ---
 
+## What Models Do We Use
+
+| Model | Provider | Primary Use |
+|-------|----------|-------------|
+| **Nano Banana 2** (Gemini 3.1 Flash Image) | Google | Default image generation — photorealistic scenes, complex compositions, text rendering, multi-turn character consistency |
+| **GPT Image 1.5** | OpenAI | Transparent background images — logos, stickers, product cutouts, overlay graphics |
+| **Recraft** | Recraft AI | Scalable vector illustrations (SVG) and icon generation |
+
+**Nano Banana 2** is the default model for all image generation. CellCog's agents intelligently route to other models when the task calls for it — for example, transparent PNGs are automatically handled by GPT Image 1.5, and vector/icon requests go to Recraft. If you'd prefer a specific model, just mention it in your prompt (e.g., *"use ChatGPT/OpenAI image generation"*).
+
 ## What Images You Can Create
 
 ### Single Image Creation
