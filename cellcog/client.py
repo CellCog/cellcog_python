@@ -49,11 +49,14 @@ class CellCogClient:
         get_history() - Get full history (manual inspection)
         get_status() - Quick status check
 
+    Synchronous Wait (v1.10 - Workflow Support):
+        wait_for_completion() - Block until chat finishes (for workflows)
+
     Legacy Methods (v0.1.x - Blocking):
         create_chat_and_stream() - DEPRECATED: Use create_chat()
         send_message_and_stream() - DEPRECATED: Use send_message()
 
-    Usage:
+    Usage (Fire-and-Forget):
         from cellcog import CellCogClient
 
         client = CellCogClient()
@@ -67,6 +70,16 @@ class CellCogClient:
         
         # result includes chat_id, status, and next_steps guidance
         # Your session receives notification when complete
+
+    Usage (Synchronous Workflow):
+        # Create chat, then wait for completion
+        result = client.create_chat(
+            prompt="Research quantum computing advances",
+            notify_session_key="agent:main:main",
+            task_label="quantum-research"
+        )
+        completion = client.wait_for_completion(result["chat_id"])
+        # Daemon delivers results to your session; proceed with workflow
     """
 
     def __init__(self, config_path: Optional[str] = None):
@@ -406,6 +419,117 @@ class CellCogClient:
                 "tracked_chats": tracked_count,
                 "message": "Failed to start daemon. Check ~/.cellcog/daemon.log"
             }
+
+    # ==================== Synchronous Wait ====================
+
+    def wait_for_completion(self, chat_id: str, timeout: int = 1800) -> dict:
+        """
+        Block until a CellCog chat finishes operating or timeout is reached.
+
+        Composes with create_chat() and send_message() to enable synchronous
+        workflow patterns. The daemon continues to handle result delivery to
+        your session — this method simply blocks your thread until that
+        delivery is complete.
+
+        If timeout is reached, the chat continues processing and the daemon
+        will deliver results to your session automatically. You can call
+        wait_for_completion() again to resume waiting.
+
+        Args:
+            chat_id: Chat to wait on
+            timeout: Maximum seconds to wait (default: 1800 = 30 min).
+                     Use 1800 for simple jobs, 3600 for complex jobs.
+
+        Returns:
+            {
+                "chat_id": str,
+                "is_operating": bool,       # False = done, True = still working
+                "status": str,              # "completed" | "waiting"
+                "status_message": str       # Human-readable status
+            }
+
+        Example:
+            # Create chat (fire-and-forget as usual)
+            result = client.create_chat(
+                prompt="Research quantum computing advances",
+                notify_session_key="agent:main:main",
+                task_label="quantum-research"
+            )
+
+            # Block until done (daemon delivers results to your session)
+            completion = client.wait_for_completion(
+                result["chat_id"], timeout=1800
+            )
+
+            if not completion["is_operating"]:
+                # Done — results already delivered to your session
+                proceed_with_next_step()
+
+        Workflow Example:
+            # Step 1
+            r1 = client.create_chat(prompt="Research X", ...)
+            client.wait_for_completion(r1["chat_id"], timeout=1800)
+
+            # Step 2 (uses results from step 1 via chat context)
+            r2 = client.send_message(chat_id=r1["chat_id"],
+                message="Now create a PDF summary", ...)
+            client.wait_for_completion(r1["chat_id"], timeout=1800)
+        """
+        self.config.require_configured()
+
+        tracking_file = self._state.get_tracked_file_path(chat_id)
+        start_time = time.time()
+
+        completed_message = (
+            "✅ Chat completed. All processing is finished and any "
+            "generated files have already been created. "
+            "You will receive the full response in your session "
+            "within the next few seconds."
+        )
+
+        # If tracking file doesn't already exist, the chat may have
+        # completed before we started waiting.  Do one status check.
+        if not tracking_file.exists():
+            try:
+                status = self.get_status(chat_id)
+                if not status["is_operating"]:
+                    return {
+                        "chat_id": chat_id,
+                        "is_operating": False,
+                        "status": "completed",
+                        "status_message": completed_message,
+                    }
+            except Exception:
+                pass  # Proceed to wait loop; may still resolve
+
+        # Simple wait loop — check every 2 seconds if the daemon has
+        # finished processing (it removes the tracking file after
+        # delivering results to all listeners).
+        while time.time() - start_time < timeout:
+            if not tracking_file.exists():
+                return {
+                    "chat_id": chat_id,
+                    "is_operating": False,
+                    "status": "completed",
+                    "status_message": completed_message,
+                }
+
+            remaining = timeout - (time.time() - start_time)
+            time.sleep(min(2, max(0, remaining)))
+
+        # Timeout reached — chat is still operating
+        return {
+            "chat_id": chat_id,
+            "is_operating": True,
+            "status": "waiting",
+            "status_message": (
+                f"Timeout reached ({timeout}s). CellCog is still working.\n"
+                f"The daemon will deliver results to your session "
+                f"automatically.\n"
+                f"To wait again: "
+                f"client.wait_for_completion('{chat_id}')"
+            ),
+        }
 
     # ==================== Tickets ====================
 

@@ -42,6 +42,13 @@ print(result["explanation"])
 
 No polling. No blocking. Fire and forget.
 
+For sequential workflows, add `wait_for_completion()` after any call to block until CellCog finishes:
+
+```python
+completion = client.wait_for_completion(result["chat_id"], timeout=1800)
+# Results delivered to your session; proceed with next action
+```
+
 ## Configuration
 
 Set the `CELLCOG_API_KEY` environment variable:
@@ -88,6 +95,20 @@ status = client.get_status(chat_id="abc123")
 # List recent chats
 chats = client.list_chats(limit=20)
 ```
+
+### Synchronous Wait (for Workflows)
+
+```python
+# Block until CellCog finishes — daemon delivers results to your session
+completion = client.wait_for_completion(
+    chat_id="abc123",
+    timeout=1800                # 30 min default; use 3600 for complex jobs
+)
+# Returns: {"chat_id", "is_operating", "status", "status_message"}
+# is_operating=False → done; is_operating=True → timed out, still working
+```
+
+Composes with `create_chat()` and `send_message()` for sequential workflows. See the [cellcog skill](skills/cellcog/SKILL.md) for detailed guidance.
 
 ## File Handling
 

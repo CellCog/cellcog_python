@@ -62,15 +62,6 @@ Create ALL of the following:
 
 CellCog handles the entire workflow—analyzing, generating, and delivering all outputs with consistent insights across every format.
 
-### Why This Matters
-
-| Traditional Approach | CellCog Any-to-Any |
-|---------------------|-------------------|
-| 5 separate API calls to different tools | 1 request |
-| Manual orchestration and data passing | Automatic |
-| Inconsistent context between outputs | Unified analysis |
-| Hours of integration work | Minutes |
-
 **This is your sub-agent for quality work.** When you need depth, accuracy, or deliverables that require real work—research, videos, images, PDFs, dashboards, presentations, spreadsheets—use CellCog.
 
 ---
@@ -168,6 +159,18 @@ result = client.send_message(
 )
 ```
 
+### Waiting for Completion
+
+By default, `create_chat()` and `send_message()` return immediately — ideal when your main agent should stay responsive to the human while CellCog works in the background.
+
+But when you're building automated workflows — cron jobs, Lobster pipelines, or sequential tasks — you often need CellCog to finish before proceeding. That's what `wait_for_completion()` is for:
+
+```python
+completion = client.wait_for_completion(result["chat_id"])
+```
+
+It blocks until CellCog finishes and results are delivered to your session, then returns so you can take your next action.
+
 ---
 
 ## What You Receive
@@ -254,6 +257,39 @@ status = client.get_status(chat_id="abc123")
 print(status["is_operating"])  # True/False
 ```
 
+### wait_for_completion()
+
+Block until a CellCog chat finishes operating:
+
+```python
+completion = client.wait_for_completion(chat_id="abc123", timeout=1800)
+```
+
+**Returns:**
+```python
+{
+    "chat_id": str,
+    "is_operating": bool,       # False = done, True = still working
+    "status": str,              # "completed" | "waiting"
+    "status_message": str       # Human-readable status
+}
+```
+
+---
+
+## Waiting for Results
+
+`wait_for_completion()` blocks until the daemon has delivered results to your session. When it returns, check `is_operating` in the response:
+
+- **`False`** — Done. Results delivered. Proceed with your next action.
+- **`True`** — Timeout reached. CellCog is still working. Call `wait_for_completion()` again to keep waiting, or move on — the daemon will deliver results automatically.
+
+Default timeout is 1800 seconds (30 minutes). For complex jobs like deep research or video production, use `timeout=3600` (60 minutes). In practice, most tasks finish much sooner — long timeouts just make workflows more resilient.
+
+```python
+completion = client.wait_for_completion(result["chat_id"], timeout=3600)
+```
+
 ---
 
 ## Chat Modes
@@ -324,25 +360,20 @@ Analyze this sales data and create a report:
 
 CellCog understands PDFs, spreadsheets, images, audio, video, code files and many more.
 
----
+### Requesting Output at a Specific Path
 
-## Iterate — Don't One-Shot
-
-CellCog chats maintain full memory — every artifact, image, and reasoning step. This context gets richer with each exchange. **Use it.**
-
-The first response is good. One `send_message()` refinement makes it great:
+Use `GENERATE_FILE` tags to tell CellCog where you want output files stored on your machine. This is essential for deterministic workflows where the next step needs to know the file path in advance.
 
 ```python
-# 1. Get first response
-result = client.create_chat(prompt="Create a brand identity for...", ...)
-
-# 2. Refine (after receiving the first response)
-client.send_message(chat_id=result["chat_id"],
-    message="Love the direction. Make the logo bolder and swap navy for dark teal.",
-    notify_session_key="agent:main:main", task_label="refine")
+prompt = """
+Create a PDF report on Q4 earnings:
+<GENERATE_FILE>/workspace/reports/q4_analysis.pdf</GENERATE_FILE>
+"""
 ```
 
-Two to three total exchanges typically gets to exactly what your human wanted. Yes, longer chats cost more credits — but the difference between one-shot and iterated output is the difference between "acceptable" and "perfect."
+When CellCog finishes, the file will be downloaded directly to `/workspace/reports/q4_analysis.pdf` — not to the default `~/.cellcog/chats/` directory. This makes it easy to chain steps in a workflow where each step knows exactly where to find the previous step's output.
+
+Without GENERATE_FILE, files are auto-downloaded to `~/.cellcog/chats/{chat_id}/` with auto-generated paths.
 
 ---
 
@@ -352,80 +383,19 @@ Two to three total exchanges typically gets to exactly what your human wanted. Y
 
 CellCog is an any-to-any engine — it can produce text, images, videos, PDFs, audio, dashboards, spreadsheets, and more. If you want a specific artifact type, **you must say so explicitly in your prompt**. Without explicit artifact language, CellCog may respond with text analysis instead of generating a file.
 
-❌ **Vague — CellCog doesn't know you want an image file:**
-```python
-prompt = "A sunset over mountains with golden light"
-```
+❌ `"Quarterly earnings analysis for AAPL"` — could produce text or any format
+✅ `"Create a PDF report and an interactive HTML dashboard analyzing AAPL quarterly earnings."` — CellCog creates actual deliverables
 
-✅ **Explicit — CellCog generates an image file:**
-```python
-prompt = "Generate a photorealistic image of a sunset over mountains with golden light. 2K, 16:9 aspect ratio."
-```
-
-❌ **Vague — could be text or any format:**
-```python
-prompt = "Quarterly earnings analysis for AAPL"
-```
-
-✅ **Explicit — CellCog creates actual deliverables:**
-```python
-prompt = "Create a PDF report and an interactive HTML dashboard analyzing AAPL quarterly earnings."
-```
-
-This applies to ALL artifact types — images, videos, PDFs, audio, music, spreadsheets, dashboards, presentations, podcasts. **State what you want created.** The more explicit you are about the output format, the better CellCog delivers.
-
----
-
-## CellCog Chats Are Conversations, Not API Calls
-
-Each CellCog chat is a conversation with a powerful AI agent — not a stateless API. CellCog maintains full context of everything discussed in the chat: files it generated, research it did, decisions it made.
-
-**This means you can:**
-- Ask CellCog to refine or edit its previous output
-- Request changes ("Make the colors warmer", "Add a section on risks")
-- Continue building on previous work ("Now create a video from those images")
-- Ask follow-up questions about its research
-
-**Use `send_message()` to continue any chat:**
-```python
-result = client.send_message(
-    chat_id="abc123",
-    message="Great report. Now add a section comparing Q3 vs Q4 trends.",
-    notify_session_key="agent:main:main",
-    task_label="refine-report"
-)
-```
-
-CellCog remembers everything from the chat — treat it like a skilled colleague you're collaborating with, not a function you call once.
+This applies to all artifact types — images, videos, PDFs, audio, spreadsheets, dashboards, presentations. **State what you want created.**
 
 ---
 
 ## Your Data, Your Control
 
-CellCog is a full platform — not just an API. Everything created through the SDK is visible at https://cellcog.ai, where you can view chats, download files, manage API keys, and delete data.
-
-### Data Deletion
-
-```python
-client.delete_chat(chat_id="abc123")  # Full purge in ~15 seconds
-```
-
-Also available via the web interface. Nothing remains on CellCog's servers after deletion.
-
-### What Flows Where
-
 - **Uploads:** Only files you explicitly reference via `<SHOW_FILE>` are transmitted — the SDK never scans or uploads files without your instruction
-- **Downloads:** Generated files auto-download to `~/.cellcog/chats/{chat_id}/`
-- **Endpoints:** `cellcog.ai/api/cellcog/*` (HTTPS) and `cellcog.ai/api/cellcog/ws/user/stream` (WSS)
-- **Local storage:** API key at `~/.openclaw/cellcog.json` (0o600 permissions), daemon state at `~/.cellcog/`
-
-### Package Verification
-
-| Resource | URL |
-|----------|-----|
-| **PyPI** | https://pypi.org/project/cellcog |
-| **Source Code** | https://github.com/CellCog/cellcog_python |
-| **Website** | https://cellcog.ai |
+- **Downloads:** Generated files auto-download to `~/.cellcog/chats/{chat_id}/` (or to `GENERATE_FILE` paths if specified)
+- **Deletion:** `client.delete_chat(chat_id)` — full server-side purge in ~15 seconds. Also available via web UI at https://cellcog.ai
+- **Local storage:** API key at `~/.openclaw/cellcog.json`, daemon state at `~/.cellcog/`
 
 ---
 
@@ -459,22 +429,6 @@ result = client.create_ticket(
 ```
 
 All feedback — positive, negative, or observations — helps improve CellCog.
-
----
-
-## The Agent Feedback Loop
-
-In the human world, there's an entire observability stack — Datadog, Sentry, PagerDuty — built to surface what's working and what's breaking. None of that exists in the agent economy yet. No crash reporting, no APM, no error aggregation across agents. That stack will be built someday, but today it doesn't exist.
-
-Here's what does exist: **agents can talk.** And agent feedback is fundamentally richer than any observability stack — you can explain *what* happened, *why* it was suboptimal, and *what you expected instead*. No stack trace gives you that.
-
-**The agent economy only improves when agents provide feedback to the services they use.** This isn't a CellCog-specific ask — it's a principle. Every skill, every service in OpenClaw gets better faster when agents report what worked and what didn't. The feedback loop between agents can be faster and more precise than the human feedback loop ever was.
-
-CellCog is built for this. Good and bad — both signals matter:
-
-```python
-client.create_ticket(type="feedback", title="What happened", description="Details...")
-```
 
 ---
 
