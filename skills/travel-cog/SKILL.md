@@ -94,7 +94,7 @@ The details that matter:
 | **Interactive HTML** | Clickable maps, expandable days, budget tracker |
 | **Markdown** | Integration into Notion, Obsidian, or other planning tools |
 
-Specify your preferred format, or CellCog will default to PDF.
+Specify your preferred format. CellCog defaults to PDF when no format is specified.
 
 ---
 

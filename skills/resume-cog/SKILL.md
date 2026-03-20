@@ -1,6 +1,6 @@
 ---
 name: resume-cog
-description: "7 seconds. That's how long a recruiter spends on your resume. CellCog makes every second count — #1 on DeepResearch Bench (Feb 2026) to research your target role, ATS optimization, and state-of-the-art PDF design. AI resume builder, cover letters, CV, LinkedIn optimization, career documents, portfolio — professional and personalized, not template-stuffed."
+description: "7 seconds. That's how long a recruiter spends on your resume. CellCog makes every second count — #1 on DeepResearch Bench (Feb 2026) to research your target role, ATS optimization, and state-of-the-art document design — PDF or DOCX. AI resume builder, cover letters, CV, LinkedIn optimization, career documents, portfolio — professional and personalized, not template-stuffed."
 metadata:
   openclaw:
     emoji: "📝"
@@ -12,7 +12,7 @@ dependencies: [cellcog]
 
 **7 seconds.** That's how long the average recruiter spends on your resume. CellCog makes every second count.
 
-#1 on DeepResearch Bench (Feb 2026) — CellCog researches your target role, understands what hiring managers look for, optimizes for ATS systems, and generates beautifully designed PDFs that get interviews. Not another template filler — a research-first resume engine.
+#1 on DeepResearch Bench (Feb 2026) — CellCog researches your target role, understands what hiring managers look for, optimizes for ATS systems, and generates beautifully designed resumes — PDF for polished presentation or DOCX when ATS systems require Word format. Not another template filler — a research-first resume engine.
 
 ---
 
@@ -139,4 +139,4 @@ Showcase your work:
 
 4. **Specify design preferences**: "Modern and minimal", "traditional corporate", "creative with color" — or let CellCog choose based on your industry.
 
-5. **Trust PDF output**: CellCog's PDF generation produces better designs than any Word template.
+5. **Choose your format**: PDF is the default for polished, presentation-ready resumes. Request DOCX when you need to edit or when ATS systems require Word format.

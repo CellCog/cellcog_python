@@ -1,6 +1,6 @@
 ---
 name: slides-cog
-description: "Great slides need two things: content worth presenting and design worth looking at. #1 on DeepResearch Bench (Feb 2026) — CellCog researches and fills content mindfully from minimal prompts, no filler. State-of-the-art PDF generation for presentations, pitch decks, keynotes, and slideshows you can present as-is."
+description: "Great slides need two things: content worth presenting and design worth looking at. #1 on DeepResearch Bench (Feb 2026) — CellCog researches and fills content mindfully from minimal prompts, no filler. State-of-the-art presentation generation — PDF slides by default, native PPTX when you need it."
 metadata:
   openclaw:
     emoji: "📽️"
@@ -13,7 +13,7 @@ dependencies: [cellcog]
 **Great slides need two things: content worth presenting and design worth looking at.** CellCog takes both seriously.
 
 - **Content:** #1 on DeepResearch Bench (Feb 2026) — your prompt can be minimal and CellCog will research and fill in the substance mindfully, not just pad slides with filler
-- **Design:** State-of-the-art PDF generation — we've invested heavily in making every slide presentation-ready, with layouts, typography, and visuals you can present as-is
+- **Design:** State-of-the-art presentation generation — PDF slides or native PPTX, with layouts, typography, and visuals you can present as-is
 
 Pitch decks, keynotes, board presentations, image slideshows — ready to present, not ready to fix.
 
@@ -43,30 +43,27 @@ result = client.create_chat(
 
 ---
 
-## PDF is the Default (And the Future)
+## Output Formats
 
-**CellCog generates all presentations and slides as PDF by default.** No questions asked.
+CellCog generates presentations in multiple formats. Each has its strengths:
 
-### Why PDF?
+### PDF (Default for Ambiguous Requests)
 
-AI excels at generating complete, beautiful documents directly. PDF captures AI's full creative capability:
+When you say "create a presentation" or "make a slide deck" without specifying a format, CellCog generates PDF:
 - Full control over layout, typography, and design
 - Perfect rendering across all devices
 - Professional, polished results every time
 - Supports images, charts, complex layouts without compromise
 
-**PDF is the future of AI-generated documents.** The paradigm has shifted—AI generates finished products, not editable drafts.
+### PPTX (First-Class Support)
 
-### What About PPTX/DOCX?
+When you explicitly request PPTX ("create a PowerPoint", "make a .pptx"), CellCog generates native PowerPoint directly:
+- Editable slides — your team can modify, reorder, and customize
+- Compatible with PowerPoint, Google Slides, and Keynote
+- Professional layouts with proper slide masters and formatting
+- Great for collaborative workflows where multiple people contribute
 
-PPTX and DOCX formats were designed for humans to manually build documents with complex editing features. They constrain AI's creative output.
-
-**If you absolutely need PPTX or DOCX:**
-- You must explicitly request it in your prompt: "Create this as PPTX" or "I need an editable DOCX"
-- Be aware that quality will be noticeably lower (~30-40% of PDF quality)
-- Consider: Generate PDF first, then use external tools to convert if editing is essential
-
-**We don't ask which format you want.** PDF is the answer. If you need something else, tell us upfront.
+**Just ask for PPTX and you'll get it.** No need to justify why you want an editable format.
 
 ---
 
@@ -146,11 +143,11 @@ CellCog presentations can include:
 
 ## Output Format Summary
 
-| Format | Quality | When to Use |
-|--------|---------|-------------|
-| **PDF** | ⭐⭐⭐⭐⭐ Excellent | **Default for everything** |
-| **Interactive HTML** | ⭐⭐⭐⭐ Great | Web-based presentations, internal tools |
-| **PPTX** | ⭐⭐ Limited | Only when explicitly requested AND editing in PowerPoint is absolutely required |
+| Format | When to Use |
+|--------|-------------|
+| **PDF** | Default when no format specified — polished, presentation-ready |
+| **PPTX** | When you request PowerPoint — editable, collaborative, team workflows |
+| **Interactive HTML** | Web-based presentations, internal tools |
 
 ---
 
@@ -212,8 +209,8 @@ CellCog presentations can include:
 **Image slideshow:**
 > "Create a visual slideshow presentation showcasing 10 images of modern architecture around the world. Each slide should have: one stunning building image, the building name, location, and architect. Minimal text, maximum visual impact. Generate the images."
 
-**Explicitly requesting PPTX (only when necessary):**
-> "Create a 10-slide sales deck as PPTX (I need to edit it in PowerPoint). Note: I understand PDF quality is better, but I need the editable format for my team's workflow."
+**PowerPoint presentation:**
+> "Create a 10-slide sales deck as PPTX. Our team needs to customize it for different clients before presenting."
 
 ---
 
@@ -229,4 +226,4 @@ CellCog presentations can include:
 
 5. **Mention the audience**: "For investors", "For technical team", "For executives" changes tone and detail level.
 
-6. **Trust PDF**: It's the default for a reason. Only request PPTX/DOCX if you truly need to edit the file afterward.
+6. **Choose your format**: PDF is the default for polished output. Request PPTX when your team needs to edit or customize the slides.

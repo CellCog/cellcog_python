@@ -1,6 +1,6 @@
 ---
 name: docs-cog
-description: "Deep reasoning. Accurate data. Beautiful design. The three things every great document needs — and most AI gets wrong. #1 on DeepResearch Bench (Feb 2026), powered by SOTA search models, and state-of-the-art PDF generation. Create resumes, contracts, reports, proposals, invoices, certificates, and any professional document."
+description: "Deep reasoning. Accurate data. Beautiful design. The three things every great document needs — and most AI gets wrong. #1 on DeepResearch Bench (Feb 2026), powered by SOTA search models, and state-of-the-art document generation — PDF by default, native DOCX when you need it. Create resumes, contracts, reports, proposals, invoices, certificates, and any professional document."
 metadata:
   openclaw:
     emoji: "📄"
@@ -12,7 +12,7 @@ dependencies: [cellcog]
 
 **Deep reasoning. Accurate data. Beautiful design.** The three things every great document needs — and most AI gets wrong.
 
-CellCog gets them right: **#1 on DeepResearch Bench (Feb 2026)** for deep reasoning, **SOTA search models** for factually grounded content, and **state-of-the-art PDF generation** that rivals professional design studios. Resumes, contracts, reports, proposals — delivered in minutes, looking like they took days.
+CellCog gets them right: **#1 on DeepResearch Bench (Feb 2026)** for deep reasoning, **SOTA search models** for factually grounded content, and **state-of-the-art document generation** — PDF or native DOCX, both rivaling professional design studios. Resumes, contracts, reports, proposals — delivered in minutes, looking like they took days.
 
 ---
 
@@ -40,11 +40,19 @@ result = client.create_chat(
 
 ---
 
-## PDF is the Default
+## Output Formats
 
-**All documents are generated as PDF.** No questions asked.
+CellCog generates professional documents in multiple formats:
 
-CellCog excels at creating beautiful, professionally formatted documents. PDF captures AI's full creative capability—perfect typography, layouts, and design. If you need DOCX for editing, explicitly request it in your prompt (quality will be lower).
+### PDF (Default for Ambiguous Requests)
+
+When you say "create a report" or "make a document" without specifying a format, CellCog generates PDF — perfect typography, layouts, and design with full creative control.
+
+### DOCX (First-Class Support)
+
+When you explicitly request DOCX ("create a Word document", "make a .docx"), CellCog generates native Word directly — editable, compatible with Microsoft Word and Google Docs, great for collaborative workflows where multiple people contribute.
+
+**Just ask for DOCX and you'll get it.** No need to justify why you want an editable format.
 
 ---
 
@@ -219,4 +227,4 @@ Official documents:
 
 5. **Audience context**: "For investors", "For enterprise clients", "For students" changes tone and detail level.
 
-6. **Trust PDF**: It's the default for a reason. Only request DOCX if you truly need to edit the file afterward.
+6. **Choose your format**: PDF is the default for polished output. Request DOCX when your team needs to edit or customize the document.
