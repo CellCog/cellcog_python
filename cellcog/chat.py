@@ -40,7 +40,14 @@ class ChatManager:
         self.files = file_processor
         self._chats_dir = Path("~/.cellcog/chats").expanduser()
 
-    def create(self, prompt: str, project_id: Optional[str] = None, chat_mode: str = "agent") -> dict:
+    def create(
+        self,
+        prompt: str,
+        project_id: Optional[str] = None,
+        chat_mode: str = "agent",
+        hc_enabled: bool = False,
+        hc_working_directory: Optional[str] = None,
+    ) -> dict:
         """
         Create a new CellCog chat (without streaming).
 
@@ -48,6 +55,8 @@ class ChatManager:
             prompt: Initial prompt (can include SHOW_FILE tags for file uploads)
             project_id: Optional CellCog project ID
             chat_mode: "agent" (fast, iterative), "agent team" (deep reasoning), or "agent team max" (high-stakes)
+            hc_enabled: Enable Human Computer (co-work) for this chat
+            hc_working_directory: Working directory on user's machine for HC commands
 
         Returns:
             {
@@ -70,6 +79,10 @@ class ChatManager:
         data = {"message": transformed, "chat_mode": api_chat_mode}
         if project_id:
             data["project_id"] = project_id
+        if hc_enabled:
+            data["hc_enabled"] = True
+        if hc_working_directory:
+            data["hc_working_directory"] = hc_working_directory
 
         resp = self._request("POST", "/cellcog/chat/new", data)
 

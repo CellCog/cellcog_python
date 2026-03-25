@@ -107,6 +107,19 @@ class CellCogDaemon:
         # Fatal error handling — prevent duplicate notifications
         self._fatal_error_handled = False
 
+        # Resilience: watchdog detects sleep/wake via wall clock jumps
+        self.watchdog_task: Optional[asyncio.Task] = None
+        self._watchdog_interval = 10  # seconds
+        self._watchdog_last_check = time.time()
+
+        # Resilience: heartbeat file for client-side daemon health checks
+        self.heartbeat_task: Optional[asyncio.Task] = None
+        self._heartbeat_file = Path("~/.cellcog/daemon.heartbeat").expanduser()
+        self._heartbeat_interval = 30  # seconds
+
+        # Resilience: max tracking age before forced re-verify (24 hours)
+        self._max_tracking_age_hours = 24
+
         # Import message processor lazily to avoid circular imports
         self._message_processor = None
 
@@ -152,6 +165,10 @@ class CellCogDaemon:
 
         # 5. Start interim update loop
         self.interim_task = asyncio.create_task(self._interim_update_loop())
+
+        # 6. Start resilience tasks (additive — never modify existing tasks)
+        self.watchdog_task = asyncio.create_task(self._watchdog_loop())
+        self.heartbeat_task = asyncio.create_task(self._heartbeat_loop())
 
         log.info(f"Daemon running. Tracking {len(self.tracked_chats)} chats.")
 
@@ -792,6 +809,23 @@ class CellCogDaemon:
 
             try:
                 chat_ids = list(self.tracked_chats.keys())
+
+                # Safety net: log warnings for very old tracked chats
+                for chat_id in chat_ids:
+                    chat = self.tracked_chats.get(chat_id)
+                    if chat:
+                        try:
+                            from datetime import datetime as dt, timezone as tz
+                            created = dt.fromisoformat(chat.created_at)
+                            age_hours = (dt.now(tz.utc) - created).total_seconds() / 3600
+                            if age_hours > self._max_tracking_age_hours:
+                                log.warning(
+                                    f"[Polling] Chat {chat_id} tracked for {age_hours:.1f}h "
+                                    f"(>{self._max_tracking_age_hours}h) — will force status check"
+                                )
+                        except (ValueError, TypeError):
+                            pass  # Invalid timestamp — skip expiry check
+
                 statuses = self._get_bulk_chat_status(chat_ids)
 
                 for chat_id in chat_ids:
@@ -1041,12 +1075,124 @@ class CellCogDaemon:
             log.warning(f"Failed to mark chat {chat_id} as seen: {e}")
 
     # =========================================================================
+    # Resilience: Watchdog, Heartbeat, Immediate Poll
+    # =========================================================================
+
+    async def _watchdog_loop(self):
+        """
+        Detect sleep/wake events by monitoring wall clock jumps.
+
+        Uses time.time() (wall clock) which advances during OS sleep on all
+        platforms. If the time between iterations jumps by more than 2x the
+        sleep interval, we were likely suspended. Forces WebSocket reconnection
+        and an immediate poll to catch completions missed during sleep.
+
+        NOTE: time.monotonic() does NOT work for this on macOS — it pauses
+        during sleep (uses mach_absolute_time). time.time() is correct here.
+        """
+        log.info(f"Watchdog started (interval: {self._watchdog_interval}s)")
+
+        while self.running:
+            self._watchdog_last_check = time.time()
+            await asyncio.sleep(self._watchdog_interval)
+            elapsed = time.time() - self._watchdog_last_check
+
+            # If we slept for >2x expected, we were likely suspended
+            if elapsed > self._watchdog_interval * 2.5:
+                log.warning(
+                    f"Watchdog detected time jump: expected ~{self._watchdog_interval}s, "
+                    f"got {elapsed:.1f}s. Likely woke from sleep."
+                )
+
+                # Mark WebSocket as unhealthy — it's almost certainly dead after sleep.
+                # The existing _websocket_loop will detect the broken connection via
+                # ping timeout and reconnect on its own. We just mark it unhealthy so
+                # the fallback poll kicks in faster.
+                self.ws_healthy = False
+
+                # Trigger an immediate poll to catch completions missed during sleep.
+                # This is additive — the regular poll loop continues independently.
+                log.info("Watchdog: triggering immediate poll after wake")
+                try:
+                    await self._immediate_poll()
+                except Exception as e:
+                    log.error(f"Watchdog immediate poll failed: {e}")
+
+    async def _immediate_poll(self):
+        """
+        One-shot poll of all tracked chats. Used by watchdog on wake
+        and after WebSocket reconnection.
+
+        Runs the same logic as _fallback_poll_loop but once, not in a loop.
+        Does NOT interfere with the regular poll loop.
+        """
+        if not self.tracked_chats:
+            return
+
+        log.info(f"[Immediate Poll] Checking {len(self.tracked_chats)} chats")
+
+        try:
+            chat_ids = list(self.tracked_chats.keys())
+            statuses = self._get_bulk_chat_status(chat_ids)
+
+            for chat_id in chat_ids:
+                if chat_id not in statuses:
+                    log.warning(f"[Immediate Poll] Chat {chat_id} missing. Removing.")
+                    await self._remove_chat(chat_id)
+                    continue
+
+                status = statuses[chat_id]
+                if not status["is_operating"]:
+                    log.info(f"[Immediate Poll] Chat {chat_id} completed, processing...")
+                    await self._handle_completion(chat_id)
+
+        except (_FatalDaemonError,) as e:
+            await self._handle_fatal_error(e)
+        except Exception as e:
+            log.error(f"[Immediate Poll] Error: {e}")
+
+    async def _heartbeat_loop(self):
+        """
+        Write heartbeat timestamp every 30 seconds.
+
+        The client checks this file in _is_daemon_alive() to detect a frozen
+        or dead daemon. If the heartbeat is stale (>120s), the client kills
+        and restarts the daemon.
+
+        This is purely additive — it writes a small file and never interferes
+        with any other daemon logic.
+        """
+        log.info(f"Heartbeat started (interval: {self._heartbeat_interval}s)")
+
+        while self.running:
+            try:
+                self._heartbeat_file.write_text(str(time.time()))
+            except IOError as e:
+                log.warning(f"Failed to write heartbeat: {e}")
+            await asyncio.sleep(self._heartbeat_interval)
+
+    # =========================================================================
     # Shutdown
     # =========================================================================
 
     async def _shutdown(self):
         """Clean shutdown - cancel tasks but preserve state files."""
         self.running = False
+
+        # Cancel resilience tasks
+        for task in (self.watchdog_task, self.heartbeat_task):
+            if task:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+        # Clean up heartbeat file
+        try:
+            self._heartbeat_file.unlink(missing_ok=True)
+        except Exception:
+            pass
 
         # Cancel interim updates task
         if self.interim_task:

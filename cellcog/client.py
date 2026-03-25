@@ -112,6 +112,108 @@ class CellCogClient:
 
     # ==================== v3.0 Primary Methods (Fire and Forget) ====================
 
+    # ==================== Co-work (Human Computer) ====================
+
+    def get_desktop_status(self) -> dict:
+        """
+        Check if the user's CellCog Desktop app is connected.
+
+        Use before creating co-work-enabled chats to verify the desktop
+        app is running and authenticated on the user's machine.
+
+        Returns:
+            {
+                "connected": bool,
+                "system_info": {
+                    "os": str,           # "darwin", "win32", "linux"
+                    "hostname": str,
+                    "shell": str,
+                    "app_version": str,
+                    "available_tools": ["python3", "git", ...],
+                } | None,
+                "settings": {...} | None,
+                "setup_instructions": str  # Only if not connected
+            }
+        """
+        self.config.require_configured()
+        result = self._chat._request("GET", "/cellcog/human-computer/status")
+
+        if not result.get("connected"):
+            base = self.config.api_base_url.rstrip("/")
+            result["setup_instructions"] = (
+                "CellCog Desktop app is not connected.\n\n"
+                "To set up (agent can do this programmatically):\n"
+                f"1. Download from: {base}/cellcog/human-computer/download/mac "
+                f"(or /win, /linux)\n"
+                "2. Install the app on the user's machine\n"
+                "3. Run: cellcog-desktop --set-api-key <CELLCOG_API_KEY>\n"
+                "4. Run: cellcog-desktop --start\n"
+                "5. Verify: cellcog-desktop --status\n\n"
+                "If the user prefers manual setup:\n"
+                "1. Download CellCog Desktop from cellcog.ai/cowork\n"
+                "2. Open the app and enter API key\n"
+            )
+        return result
+
+    def get_desktop_download_urls(self) -> dict:
+        """
+        Get download URLs and platform-specific install instructions for the
+        CellCog Desktop app.
+
+        Returns a dict with per-platform download URL and shell commands to
+        install the app. After installation, use the ``post_install`` commands
+        to configure and start the app.
+
+        Returns:
+            {
+                "mac": {"url": str, "install_commands": [str, ...]},
+                "windows": {"url": str, "install_commands": [str, ...]},
+                "linux": {"url": str, "install_commands": [str, ...]},
+                "post_install": str  # Commands to run after install (all platforms)
+            }
+        """
+        base = self.config.api_base_url.rstrip("/")
+        mac_url = f"{base}/cellcog/human-computer/download/mac"
+        win_url = f"{base}/cellcog/human-computer/download/win"
+        linux_url = f"{base}/cellcog/human-computer/download/linux"
+
+        return {
+            "mac": {
+                "url": mac_url,
+                "install_commands": [
+                    f'curl -L -o /tmp/CellCogDesktop.dmg "{mac_url}"',
+                    'hdiutil attach /tmp/CellCogDesktop.dmg -nobrowse -quiet',
+                    'cp -r "/Volumes/CellCog Desktop/CellCog Desktop.app" /Applications/',
+                    'hdiutil detach "/Volumes/CellCog Desktop" -quiet',
+                    'rm -f /tmp/CellCogDesktop.dmg',
+                ],
+            },
+            "windows": {
+                "url": win_url,
+                "install_commands": [
+                    f'curl -L -o %TEMP%\\CellCogDesktop.exe "{win_url}"',
+                    '%TEMP%\\CellCogDesktop.exe /S',
+                ],
+            },
+            "linux": {
+                "url": linux_url,
+                "install_commands": [
+                    f'curl -L -o ~/CellCogDesktop.AppImage "{linux_url}"',
+                    'chmod +x ~/CellCogDesktop.AppImage',
+                    'mkdir -p ~/.local/bin',
+                    'mv ~/CellCogDesktop.AppImage ~/.local/bin/cellcog-desktop-app',
+                ],
+            },
+            "post_install": (
+                "cellcog-desktop --set-api-key <CELLCOG_API_KEY>\n"
+                "cellcog-desktop --start\n"
+                "sleep 5\n"
+                "cellcog-desktop --status"
+            ),
+        }
+
+    # ==================== v3.0 Primary Methods (Fire and Forget) ====================
+
     def create_chat(
         self,
         prompt: str,
@@ -120,6 +222,8 @@ class CellCogClient:
         gateway_url: Optional[str] = None,
         project_id: Optional[str] = None,
         chat_mode: str = "agent",
+        enable_cowork: bool = False,
+        cowork_working_directory: Optional[str] = None,
     ) -> dict:
         """
         Create a CellCog chat and return immediately.
@@ -134,6 +238,11 @@ class CellCogClient:
             gateway_url: OpenClaw Gateway URL (default: from OPENCLAW_GATEWAY_URL env)
             project_id: Optional CellCog project ID
             chat_mode: "agent" (fast, most tasks), "agent team" (deep reasoning), or "agent team max" (high-stakes)
+            enable_cowork: Enable co-work on user's PC. When True, CellCog agents can
+                run commands on the user's machine via the CellCog Desktop app.
+                All commands are auto-approved for SDK/agent users.
+            cowork_working_directory: Working directory on user's machine for co-work
+                commands. Only used when enable_cowork=True.
         
         Returns:
             {
@@ -149,9 +258,11 @@ class CellCogClient:
         
         Example:
             result = client.create_chat(
-                prompt="Research quantum computing advances in 2026",
+                prompt="Fix the bug in main.py at line 42",
                 notify_session_key="agent:main:main",
-                task_label="quantum-research"
+                task_label="fix-bug",
+                enable_cowork=True,
+                cowork_working_directory="/Users/me/project"
             )
             
             # Continue with other work while CellCog processes...
@@ -160,7 +271,11 @@ class CellCogClient:
         self.config.require_configured()
         
         # 1. Create the chat via API
-        api_result = self._chat.create(prompt, project_id, chat_mode)
+        api_result = self._chat.create(
+            prompt, project_id, chat_mode,
+            hc_enabled=enable_cowork,
+            hc_working_directory=cowork_working_directory,
+        )
         chat_id = api_result["chat_id"]
         
         # Resolve gateway URL
@@ -669,16 +784,41 @@ class CellCogClient:
             return True  # Can't read = assume stale
     
     def _is_daemon_alive(self) -> bool:
-        """Check if daemon process is running."""
+        """
+        Check if daemon process is running AND responsive.
+        
+        Uses two checks:
+        1. PID file exists and process is alive (existing)
+        2. Heartbeat file is fresh (<120s old) (new — catches frozen daemons)
+        """
         if not self._daemon_pid_file.exists():
             return False
         
         try:
             pid = int(self._daemon_pid_file.read_text().strip())
             os.kill(pid, 0)  # Check if alive (doesn't actually kill)
-            return True
         except (ValueError, ProcessLookupError, PermissionError):
             return False
+        
+        # Heartbeat check: daemon writes timestamp every 30s.
+        # If stale (>120s), daemon is frozen (e.g., stuck after sleep).
+        heartbeat_file = Path("~/.cellcog/daemon.heartbeat").expanduser()
+        if heartbeat_file.exists():
+            try:
+                heartbeat_time = float(heartbeat_file.read_text().strip())
+                age = time.time() - heartbeat_time
+                if age > 120:
+                    print(
+                        f"Warning: Daemon heartbeat stale ({age:.0f}s old). "
+                        f"Killing and restarting...",
+                        file=sys.stderr
+                    )
+                    self._kill_daemon_if_running()
+                    return False
+            except (ValueError, IOError):
+                pass  # Can't read heartbeat — don't block on this
+        
+        return True
     
     def _start_daemon(self) -> bool:
         """

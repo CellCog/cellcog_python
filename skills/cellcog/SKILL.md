@@ -377,6 +377,69 @@ Without GENERATE_FILE, files are auto-downloaded to `~/.cellcog/chats/{chat_id}/
 
 ---
 
+## Co-work — CellCog on Your Machine
+
+**Co-work turns the machine OpenClaw is running on into CellCog's workspace.** CellCog Desktop acts as a bridge: CellCog's cloud agents coordinate with the desktop app to run commands, read files, and write code directly on the user's machine. It's the equivalent of a cloud IDE, but built on CellCog's web architecture.
+
+All commands are **auto-approved** for SDK/agent users — fully autonomous, no manual approval.
+
+### Why Co-work?
+
+**1. Your machine as a data source.** Your data lives on the user's machine — project files, databases, logs, configs. Instead of uploading everything, enable co-work with a working directory and CellCog agents explore, read, and reason about the data directly. No file size limits, no upload hassle.
+
+**2. CellCog as your coding powerhouse.** CellCog agents are among the most capable coding agents available — deep reasoning paired with real execution. Enable co-work and delegate complex coding tasks: build websites, APIs, fix bugs, refactor codebases, set up infrastructure. **CellCog itself is built using this exact co-work capability.** Think of it as a Claude Code or Cursor alternative, backed by CellCog's multi-agent depth and any-to-any engine.
+
+### Quick Start
+
+```python
+# 1. Check if desktop app is connected
+status = client.get_desktop_status()
+
+# 2. If not connected, get install instructions
+if not status["connected"]:
+    info = client.get_desktop_download_urls()
+    # info contains per-platform URLs + install commands
+    # Run the install commands for the user's OS, then:
+    # cellcog-desktop --set-api-key <CELLCOG_API_KEY>
+    # cellcog-desktop --start
+
+# 3. Create a co-work chat
+result = client.create_chat(
+    prompt="Refactor the auth module to use JWT tokens",
+    enable_cowork=True,
+    cowork_working_directory="/Users/me/project",
+    notify_session_key="agent:main:main",
+    task_label="refactor-auth"
+)
+```
+
+### Setup
+
+Call `client.get_desktop_download_urls()` — it returns download URLs **and** platform-specific install commands for macOS, Windows, and Linux. After installation, run `cellcog-desktop --set-api-key <key>` and `cellcog-desktop --start`. The agent can do all of this programmatically — no human interaction needed beyond providing the API key.
+
+Alternatively, ask your human to download CellCog Desktop from `cellcog.ai/cowork`, open it, and enter their API key.
+
+### Desktop App CLI
+
+Once installed, the `cellcog-desktop` CLI outputs JSON for easy agent parsing:
+
+| Command | What it does |
+|---------|-------------|
+| `cellcog-desktop --set-api-key <key>` | Authenticate with API key |
+| `cellcog-desktop --status` | Check connection + app state |
+| `cellcog-desktop --start` / `--stop` | App lifecycle |
+| `cellcog-desktop --logs` | Debug logs |
+
+### Error Recovery
+
+If the desktop disconnects, CellCog auto-fails pending commands with a clear message. Restart with `cellcog-desktop --stop && cellcog-desktop --start`, then send `continue` to the chat.
+
+### Security
+
+Blocked paths (`~/.ssh`, `~/.aws`, credentials), output redaction, and per-chat scoping remain active — even with auto-approve.
+
+---
+
 ## Tips for Better Results
 
 ### ⚠️ Be Explicit About Output Artifacts
