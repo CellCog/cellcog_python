@@ -181,6 +181,8 @@ result = client.create_chat(
     prompt="Your task description",
     notify_session_key="agent:main:main",  # Who to notify
     task_label="my-task",                   # Human-readable label
+    project_id="...",                       # Optional: project for document context
+    agent_role_id="...",                    # Optional: specialized agent role (requires project_id)
     chat_mode="agent",                      # See Chat Modes below
 )
 ```
@@ -421,6 +423,60 @@ Blocked paths (`~/.ssh`, `~/.aws`, credentials), output redaction, and per-chat 
 
 ---
 
+## Projects & Agent Roles
+
+CellCog Projects are knowledge workspaces where you upload documents and CellCog's AI organizes them into structured **Context Trees** — hierarchical, searchable summaries of your document collection. When you pass a `project_id` to `create_chat()`, CellCog agents automatically have access to all project documents, instructions, and organizational context.
+
+### Using Projects in CellCog Chats
+
+```python
+# Basic — project context
+result = client.create_chat(
+    prompt="Analyze our Q4 financials based on the uploaded reports",
+    project_id="507f1f77bcf86cd799439012",
+    notify_session_key="agent:main:main",
+    task_label="q4-analysis"
+)
+
+# Advanced — project + specialized agent role
+result = client.create_chat(
+    prompt="Identify risk factors in our portfolio",
+    project_id="507f1f77bcf86cd799439012",
+    agent_role_id="507f1f77bcf86cd799439013",
+    notify_session_key="agent:main:main",
+    task_label="risk-analysis"
+)
+```
+
+**Parameters:**
+- `project_id` — Scopes CellCog agents to a project's documents, instructions, and context
+- `agent_role_id` — (Requires `project_id`) Further specializes the agent with custom instructions and role-specific memory
+
+### Discovering Projects and Roles
+
+```python
+# List your projects
+projects = client.list_projects()
+
+# Get project details (includes context_tree_id)
+project = client.get_project("507f1f77bcf86cd799439012")
+
+# List available agent roles in a project
+roles = client.list_agent_roles("507f1f77bcf86cd799439012")
+```
+
+### Managing Projects Programmatically
+
+To create projects, upload documents, and retrieve context trees, install the `project-cog` skill:
+
+```bash
+clawhub install project-cog
+```
+
+Project Cog covers the full project lifecycle — from creation to document management to context tree retrieval. Projects also work as a **standalone knowledge management layer** without CellCog chats.
+
+---
+
 ## Tips for Better Results
 
 ### ⚠️ Be Explicit About Output Artifacts
@@ -513,6 +569,7 @@ Install capability skills to explore specific capabilities. Each one is built on
 | `seedance-cog` | Seedance × CellCog. ByteDance's #1 video model meets multi-agent orchestration. |
 | `travel-cog` | Real travel planning needs real research — not recycled blog listicles. |
 | `news-cog` | Frontier search + multi-angle research. News intelligence without context flooding. |
+| `project-cog` | Knowledge workspaces. Upload docs, get AI-processed context trees, signed URLs. Standalone or with CellCog. |
 
 **This skill shows you HOW to use CellCog. Capability skills show you WHAT's possible.**
 

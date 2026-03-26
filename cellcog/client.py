@@ -221,6 +221,7 @@ class CellCogClient:
         task_label: str,
         gateway_url: Optional[str] = None,
         project_id: Optional[str] = None,
+        agent_role_id: Optional[str] = None,
         chat_mode: str = "agent",
         enable_cowork: bool = False,
         cowork_working_directory: Optional[str] = None,
@@ -236,7 +237,9 @@ class CellCogClient:
             notify_session_key: Your session key for completion notification
             task_label: Human-readable label (appears in notification)
             gateway_url: OpenClaw Gateway URL (default: from OPENCLAW_GATEWAY_URL env)
-            project_id: Optional CellCog project ID
+            project_id: Optional CellCog project ID for document context
+            agent_role_id: Optional agent role ID within the project. Requires project_id.
+                Specializes agent behavior with custom instructions and role-specific memory.
             chat_mode: "agent" (fast, most tasks), "agent team" (deep reasoning), or "agent team max" (high-stakes)
             enable_cowork: Enable co-work on user's PC. When True, CellCog agents can
                 run commands on the user's machine via the CellCog Desktop app.
@@ -273,6 +276,7 @@ class CellCogClient:
         # 1. Create the chat via API
         api_result = self._chat.create(
             prompt, project_id, chat_mode,
+            agent_role_id=agent_role_id,
             hc_enabled=enable_cowork,
             hc_working_directory=cowork_working_directory,
         )
@@ -702,6 +706,344 @@ class CellCogClient:
             data["tags"] = tags
 
         return self._chat._request("POST", "/cellcog/tickets", data)
+
+    # ==================== Projects ====================
+
+    def list_projects(self) -> dict:
+        """
+        List all projects accessible to the current user.
+
+        Returns:
+            {"projects": [{"id", "name", "is_admin", "context_tree_id", "files_count", "created_at", ...}]}
+        """
+        self.config.require_configured()
+        return self._chat._request("GET", "/cellcog/projects")
+
+    def create_project(self, name: str, instructions: str = "") -> dict:
+        """
+        Create a new CellCog project.
+
+        A project is a knowledge workspace with its own document collection
+        (context tree) and optional AI agent instructions.
+
+        Args:
+            name: Project name (max 200 chars)
+            instructions: Optional instructions for AI agents working in this project (max 5000 chars)
+
+        Returns:
+            {"id": str, "name": str, "context_tree_id": str, "created_at": str, ...}
+
+        Note:
+            The creator is automatically an admin. Use cellcog.ai to manage
+            members and agent roles.
+        """
+        self.config.require_configured()
+        data = {"name": name}
+        if instructions:
+            data["project_instructions"] = instructions
+        return self._chat._request("POST", "/cellcog/projects", data)
+
+    def get_project(self, project_id: str) -> dict:
+        """
+        Get project details including context_tree_id.
+
+        Args:
+            project_id: Project ID
+
+        Returns:
+            {"id", "name", "project_instructions", "context_tree_id", "is_admin", "created_at", ...}
+
+        The context_tree_id is needed for document operations and context tree retrieval.
+        """
+        self.config.require_configured()
+        return self._chat._request("GET", f"/cellcog/projects/{project_id}")
+
+    def update_project(
+        self,
+        project_id: str,
+        name: Optional[str] = None,
+        instructions: Optional[str] = None,
+    ) -> dict:
+        """
+        Update project name and/or instructions (admin only).
+
+        Args:
+            project_id: Project ID
+            name: New name (optional)
+            instructions: New instructions (optional)
+
+        Returns:
+            {"message": "Project updated successfully"}
+        """
+        self.config.require_configured()
+        data = {}
+        if name is not None:
+            data["name"] = name
+        if instructions is not None:
+            data["project_instructions"] = instructions
+        return self._chat._request("PUT", f"/cellcog/projects/{project_id}", data)
+
+    def delete_project(self, project_id: str) -> dict:
+        """
+        Delete a project (admin only). Soft delete — can be recovered by CellCog support.
+
+        Args:
+            project_id: Project ID
+
+        Returns:
+            {"message": "Project deleted successfully"}
+        """
+        self.config.require_configured()
+        return self._chat._request("DELETE", f"/cellcog/projects/{project_id}")
+
+    # ==================== Agent Roles (Read-Only) ====================
+
+    def list_agent_roles(self, project_id: str) -> list:
+        """
+        List all active agent roles in a project (read-only).
+
+        Use this to discover available agent_role_id values for create_chat().
+        Agent role creation/editing is done by humans at cellcog.ai.
+
+        Args:
+            project_id: Project ID
+
+        Returns:
+            [{"id", "title", "role_description", "context_tree_id", "created_at", ...}]
+        """
+        self.config.require_configured()
+        return self._chat._request("GET", f"/cellcog/projects/{project_id}/agent-roles")
+
+    # ==================== Documents ====================
+
+    def list_documents(self, context_tree_id: str) -> dict:
+        """
+        List all documents in a context tree.
+
+        Args:
+            context_tree_id: Context tree ID (from get_project() or create_project() response)
+
+        Returns:
+            {"documents": [{"id", "original_filename", "file_type", "file_size", "status", ...}]}
+        """
+        self.config.require_configured()
+        return self._chat._request("GET", f"/cellcog/context-trees/{context_tree_id}/documents")
+
+    def upload_document(
+        self,
+        context_tree_id: str,
+        file_path: str,
+        brief_context: Optional[str] = None,
+    ) -> dict:
+        """
+        Upload a document to a context tree (admin only).
+
+        Handles the full upload flow: request URL, upload file, confirm.
+        After upload, CellCog processes the document and adds it to the
+        context tree (may take a few minutes for large files).
+
+        Args:
+            context_tree_id: Context tree ID
+            file_path: Absolute path to local file (max 100 MB)
+            brief_context: Optional description of file contents (max 500 chars).
+                Improves AI processing quality.
+
+        Returns:
+            {"file_id": str, "status": str, "message": str}
+
+        Raises:
+            FileUploadError: If file not found, too large, or upload fails
+            APIError(403): If not a project admin
+        """
+        import mimetypes
+        from pathlib import Path as _Path
+
+        from .exceptions import FileUploadError
+
+        self.config.require_configured()
+
+        path = _Path(file_path)
+        if not path.exists():
+            raise FileUploadError(f"File not found: {file_path}")
+
+        filename = path.name
+        file_size = path.stat().st_size
+        mime_type, _ = mimetypes.guess_type(str(path))
+        mime_type = mime_type or "application/octet-stream"
+
+        # Client-side file size validation (100 MB limit)
+        max_file_size = 100 * 1024 * 1024
+        if file_size > max_file_size:
+            raise FileUploadError(
+                f"File too large: {file_size / (1024 * 1024):.1f} MB. "
+                f"Maximum allowed: 100 MB."
+            )
+
+        # Step 1: Request upload URL
+        request_data = {
+            "filename": filename,
+            "file_size": file_size,
+            "mime_type": mime_type,
+        }
+        if brief_context:
+            request_data["brief_context"] = brief_context
+
+        upload_info = self._chat._request(
+            "POST",
+            f"/cellcog/context-trees/{context_tree_id}/documents/request-upload",
+            request_data,
+        )
+
+        # Step 2: Upload to signed URL
+        import requests
+
+        try:
+            with open(file_path, "rb") as f:
+                put_resp = requests.put(
+                    upload_info["upload_url"],
+                    data=f,
+                    headers={"Content-Type": mime_type},
+                    timeout=300,
+                )
+                put_resp.raise_for_status()
+        except requests.RequestException as e:
+            raise FileUploadError(f"Failed to upload file to storage: {e}")
+
+        # Step 3: Confirm upload
+        confirm_result = self._chat._request(
+            "POST",
+            f"/cellcog/context-trees/{context_tree_id}/documents/confirm-upload/{upload_info['file_id']}",
+        )
+
+        return {
+            "file_id": upload_info["file_id"],
+            "status": confirm_result.get("status", "processing"),
+            "message": (
+                f"Document '{filename}' uploaded successfully. "
+                f"CellCog is processing it — this may take a few minutes. "
+                f"The document will appear in the context tree once processed."
+            ),
+        }
+
+    def delete_document(self, context_tree_id: str, file_id: str) -> dict:
+        """
+        Delete a document from a context tree (admin only).
+
+        Args:
+            context_tree_id: Context tree ID
+            file_id: File ID (from list_documents() or upload_document())
+
+        Returns:
+            {"message": "Document deleted successfully"}
+        """
+        self.config.require_configured()
+        return self._chat._request(
+            "DELETE",
+            f"/cellcog/context-trees/{context_tree_id}/documents/{file_id}",
+        )
+
+    def bulk_delete_documents(self, context_tree_id: str, file_ids: list) -> dict:
+        """
+        Delete multiple documents at once (admin only).
+
+        Args:
+            context_tree_id: Context tree ID
+            file_ids: List of file IDs to delete (max 100)
+
+        Returns:
+            {"deleted": int, "failed": int, "results": {...}}
+        """
+        self.config.require_configured()
+        return self._chat._request(
+            "POST",
+            f"/cellcog/context-trees/{context_tree_id}/documents/bulk-delete",
+            {"file_ids": file_ids},
+        )
+
+    # ==================== Context Tree ====================
+
+    def get_context_tree_markdown(self, context_tree_id: str, include_long_description: bool = False) -> dict:
+        """
+        Get the AI-processed markdown view of a context tree.
+
+        Returns the hierarchical document structure with descriptions,
+        metadata, and organization. Use this to understand what documents
+        are available before downloading specific files.
+
+        Args:
+            context_tree_id: Context tree ID
+            include_long_description: If True, include detailed long descriptions
+                for each file in addition to short summaries. Default False.
+
+        Returns:
+            {"context_tree_id": str, "owner_type": str, "markdown": str}
+        """
+        self.config.require_configured()
+        path = f"/cellcog/context-trees/{context_tree_id}/markdown"
+        if include_long_description:
+            path += "?include_long_description=true"
+        return self._chat._request("GET", path)
+
+    def get_document_signed_urls(
+        self,
+        context_tree_id: str,
+        file_ids: list,
+        expiration_hours: int = 1,
+    ) -> dict:
+        """
+        Get time-limited download URLs for documents.
+
+        Signed URLs can be passed to other agents, tools, or humans
+        for direct file access without CellCog authentication.
+
+        Args:
+            context_tree_id: Context tree ID
+            file_ids: List of file IDs (max 100)
+            expiration_hours: URL lifetime in hours (1-168, default 1)
+
+        Returns:
+            {"urls": {file_id: url_or_null}, "errors": {file_id: error_msg}}
+        """
+        self.config.require_configured()
+        return self._chat._request(
+            "POST",
+            f"/cellcog/context-trees/{context_tree_id}/documents/signed-urls",
+            {
+                "file_ids": file_ids,
+                "expiration_hours": expiration_hours,
+            },
+        )
+
+    def get_document_signed_urls_by_path(
+        self,
+        context_tree_id: str,
+        file_paths: list,
+        expiration_hours: int = 1,
+    ) -> dict:
+        """
+        Get time-limited download URLs for documents by their file path.
+
+        Use paths as shown in get_context_tree_markdown() output
+        (e.g., '/financials/earnings_report.pdf'). This is the recommended
+        method — no file IDs needed.
+
+        Args:
+            context_tree_id: Context tree ID
+            file_paths: List of file paths from the context tree markdown (max 100)
+            expiration_hours: URL lifetime in hours (1-168, default 1)
+
+        Returns:
+            {"urls": {path: url_or_null}, "errors": {path: error_msg}}
+        """
+        self.config.require_configured()
+        return self._chat._request(
+            "POST",
+            f"/cellcog/context-trees/{context_tree_id}/documents/signed-urls-by-path",
+            {
+                "file_paths": file_paths,
+                "expiration_hours": expiration_hours,
+            },
+        )
 
     # ==================== Daemon Management ====================
 

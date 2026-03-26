@@ -45,6 +45,7 @@ class ChatManager:
         prompt: str,
         project_id: Optional[str] = None,
         chat_mode: str = "agent",
+        agent_role_id: Optional[str] = None,
         hc_enabled: bool = False,
         hc_working_directory: Optional[str] = None,
     ) -> dict:
@@ -53,8 +54,9 @@ class ChatManager:
 
         Args:
             prompt: Initial prompt (can include SHOW_FILE tags for file uploads)
-            project_id: Optional CellCog project ID
+            project_id: Optional CellCog project ID for document context
             chat_mode: "agent" (fast, iterative), "agent team" (deep reasoning), or "agent team max" (high-stakes)
+            agent_role_id: Optional agent role ID within the project. Requires project_id.
             hc_enabled: Enable Human Computer (co-work) for this chat
             hc_working_directory: Working directory on user's machine for HC commands
 
@@ -79,6 +81,8 @@ class ChatManager:
         data = {"message": transformed, "chat_mode": api_chat_mode}
         if project_id:
             data["project_id"] = project_id
+        if agent_role_id:
+            data["general_agent_role_id"] = agent_role_id
         if hc_enabled:
             data["hc_enabled"] = True
         if hc_working_directory:
