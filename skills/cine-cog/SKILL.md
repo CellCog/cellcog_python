@@ -217,6 +217,14 @@ Complete narrative filmmaking:
 
 ---
 
+## ⚠️ Important — Cinematic Video Generation Expectations
+
+Long-form cinematic AI video production is at the absolute frontier of what's possible. While some users generate stunning, cinematic videos that are ready for production use, others may spend significant credits and still not achieve a usable result. Even spending thousands of credits does not guarantee a satisfactory outcome — this is the nature of where AI video technology stands today.
+
+There is a real learning curve to generating cinematic videos with CellCog. It takes time, money, and patience. Your prompting skill, the complexity of your creative vision, and how well the foundation models perform on your specific request all play a role. Results improve as you develop intuition for what works, but we want to be upfront: cinematic video generation is inherently unpredictable, and there is always a risk that the output may not meet your expectations.
+
+---
+
 ## Tips for Better Cinematics
 
 1. **Think in scenes, not descriptions**: Break your vision into shots. "Wide establishing → medium → close-up" gives CellCog clear cinematic language.

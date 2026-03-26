@@ -119,7 +119,7 @@ Ephemeral content that connects:
 
 | Format | Dimensions | Duration |
 |--------|------------|----------|
-| Video | 1080×1920 (9:16) | 15 sec - 10 min |
+| Video | 1080×1920 (9:16) | 15 sec - 4 min |
 | Photo Mode | 1080×1920 | Up to 35 images |
 
 ---
@@ -188,6 +188,14 @@ CellCog can create content in various aesthetics:
 > Text overlay: None (let the image speak)
 > 
 > Should feel like it belongs on a curated feed."
+
+---
+
+## ⚠️ Important — Video Generation Expectations
+
+AI video production for social media is still at the frontier of what's possible. While some users generate high-quality Reels and TikToks that are ready to post, others may spend significant credits and still not achieve a usable result. Even spending thousands of credits does not guarantee a satisfactory outcome — this is the nature of where AI video technology stands today.
+
+There is a real learning curve to generating videos with CellCog. It takes time, money, and patience. Your prompting skill, the complexity of what you're trying to create, and how well the foundation models perform on your specific request all play a role. Results improve as you develop intuition for what works, but we want to be upfront: video generation is inherently unpredictable, and there is always a risk that the output may not meet your expectations.
 
 ---
 

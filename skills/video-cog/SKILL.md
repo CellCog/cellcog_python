@@ -126,7 +126,7 @@ For lipsync videos:
 
 | Aspect | Options |
 |--------|---------|
-| **Duration** | 15 seconds to 5+ minutes |
+| **Duration** | 15 seconds to 4 minutes |
 | **Aspect Ratios** | 16:9 (landscape), 9:16 (portrait/mobile), 1:1 (square) |
 | **Styles** | Photorealistic, animated, cinematic, documentary, casual |
 | **Audio** | Background music, voiceover, sound effects, or silent |
@@ -162,6 +162,14 @@ This multi-step process requires the full agent team for best results.
 
 **Spokesperson video:**
 > "Create a 60-second video with an AI spokesperson (professional male, 30s) announcing our Series B funding. Script: 'Today, we're thrilled to announce...' [provide full script]. Business casual setting, confident tone."
+
+---
+
+## ⚠️ Important — Video Generation Expectations
+
+Long-form AI video production is still at the frontier of what's possible. While some users generate high-quality, cinematic videos that are ready for production use, others may spend significant credits and still not achieve a usable result. Even spending thousands of credits does not guarantee a satisfactory outcome — this is the nature of where AI video technology stands today.
+
+There is a real learning curve to generating long-form videos with CellCog. It takes time, money, and patience. Your prompting skill, the complexity of what you're trying to create, and how well the foundation models perform on your specific request all play a role. Results improve as you develop intuition for what works, but we want to be upfront: video generation is inherently unpredictable, and there is always a risk that the output may not meet your expectations.
 
 ---
 

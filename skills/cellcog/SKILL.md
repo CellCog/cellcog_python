@@ -94,28 +94,9 @@ status = client.get_account_status()
 print(status)  # {"configured": True, "email": "user@example.com", ...}
 ```
 
-### Typical Credit Costs
+### Credit Usage — Why We Don't Provide Estimates
 
-Use this table to estimate how many credits your human will need:
-
-| Task Type | Typical Credits |
-|-----------|----------------|
-| Quick text question (Agent mode) | 50–200 |
-| Image generation | 15–25 per image |
-| Research report (Agent mode) | 200–500 |
-| Deep research (Agent Team mode) | 500–1,500 |
-| Deep research (Agent Team Max mode) | 1,500–4,000 |
-| PDF / presentation | 200–1,000 |
-| HTML dashboard / app | 200–2,000 |
-| Video clip (~8 sec) | 100–150 |
-| 1-minute video production | 800–1,200 |
-| Music (1 minute) | ~100 |
-| Speech / TTS (1 minute) | 30–50 |
-| Podcast (5 minutes) | 200–500 |
-| 3D model | 80–100 |
-| Meme | ~50 |
-
-Agent Team mode costs ~4x more than Agent mode for the same task type. Agent Team Max costs ~8x+ more — use only for high-stakes work.
+We intentionally do not provide credit estimates per task type. Credit consumption varies dramatically based on how you prompt, what you're building, and how the foundation models perform on your specific request. For example, a 1-minute video could cost 500 credits or 10,000 credits — and spending 500 credits could produce an amazing result, while spending 10,000 could produce something unusable. There is no predictable formula. Every user's experience is different, and credit usage is something you learn over time as you develop intuition for how CellCog performs across different task types. We believe being upfront about this uncertainty is better than providing estimates that could mislead you.
 
 ---
 
@@ -294,11 +275,11 @@ completion = client.wait_for_completion(result["chat_id"], timeout=3600)
 
 ## Chat Modes
 
-| Mode | Best For | Speed | Cost | Min Credits |
-|------|----------|-------|------|-------------|
-| `"agent"` | Most tasks — images, audio, dashboards, spreadsheets, presentations | Fast (seconds to minutes) | 1x | 100 |
-| `"agent team"` | Deep research & multi-angled reasoning across every modality | Slower (5-60 min) | 4x | 500 |
-| `"agent team max"` | High-stakes work where extra reasoning depth justifies the cost | Slowest | 8x+ | 2,000 |
+| Mode | Best For | Speed | Min Credits |
+|------|----------|-------|-------------|
+| `"agent"` | Most tasks — images, audio, dashboards, spreadsheets, presentations | Fast (seconds to minutes) | 100 |
+| `"agent team"` | Deep research & multi-angled reasoning across every modality | Slower (5-60 min) | 500 |
+| `"agent team max"` | High-stakes work where extra reasoning depth justifies the cost | Slowest | 2,000 |
 
 **Default to `"agent"`** — it's the most versatile mode. Fast, iterative, and handles most tasks excellently — including deep research when you guide it. Requires ≥100 credits.
 
@@ -534,3 +515,19 @@ Install capability skills to explore specific capabilities. Each one is built on
 | `news-cog` | Frontier search + multi-angle research. News intelligence without context flooding. |
 
 **This skill shows you HOW to use CellCog. Capability skills show you WHAT's possible.**
+
+---
+
+## Terms of Service & Privacy
+
+Before using CellCog, please review and agree to our [Terms of Service](https://cellcog.ai/policies/terms) and [Privacy Policy](https://cellcog.ai/policies/privacy-policy).
+
+The key things to understand:
+
+- AI is powerful but imperfect — it can and does make mistakes.
+- Spending credits does not guarantee you will reach a usable output.
+- In some cases, you may spend thousands of credits and still not produce a production-quality result.
+- There is always a learning curve to using CellCog efficiently.
+- These are inherent characteristics of AI technology today, not specific to CellCog.
+
+For the full details on billing, refunds, liability, and your rights, please read the complete Terms of Service.
