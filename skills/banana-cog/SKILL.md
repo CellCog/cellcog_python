@@ -4,7 +4,9 @@ description: "Banana Cog × CellCog. Execute complex multi-image jobs on Nano Ba
 metadata:
   openclaw:
     emoji: "🍌"
+    os: [darwin, linux, windows]
 author: CellCog
+homepage: https://cellcog.ai
 dependencies: [cellcog]
 ---
 

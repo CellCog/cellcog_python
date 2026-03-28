@@ -2,15 +2,15 @@
 name: project-cog
 description: "CellCog Projects for agents. Create knowledge workspaces, upload documents, retrieve AI-processed context trees and signed URLs. Works standalone or as CellCog chat context."
 author: CellCog
+homepage: https://cellcog.ai
 metadata:
   openclaw:
     emoji: "📂"
-    bins: [python3]
-env: [CELLCOG_API_KEY]
-install:
-  pip: cellcog
+    os: [darwin, linux, windows]
+    requires:
+      bins: [python3]
+      env: [CELLCOG_API_KEY]
 dependencies: [cellcog]
-os: [darwin, linux, windows]
 ---
 
 # Project Cog — Knowledge Workspaces for Agents

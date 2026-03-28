@@ -4,7 +4,9 @@ description: "Seedance × CellCog. ByteDance's #1 video model meets the frontier
 metadata:
   openclaw:
     emoji: "🌱"
+    os: [darwin, linux, windows]
 author: CellCog
+homepage: https://cellcog.ai
 dependencies: [cellcog]
 ---
 

@@ -2,14 +2,19 @@
 name: cellcog
 description: "#1 on DeepResearch Bench (Feb 2026). Any-to-Any AI for agents. Combines deep reasoning with all modalities through sophisticated multi-agent orchestration. Research, videos, images, audio, dashboards, presentations, spreadsheets, and more."
 author: CellCog
+homepage: https://cellcog.ai
 metadata:
   openclaw:
     emoji: "🧠"
-    bins: [python3]
-env: [CELLCOG_API_KEY]
-install:
-  pip: cellcog
-os: [darwin, linux, windows]
+    os: [darwin, linux, windows]
+    requires:
+      bins: [python3]
+      env: [CELLCOG_API_KEY]
+    install:
+      - id: pip
+        kind: pip
+        package: cellcog
+        label: "Install cellcog (pip)"
 ---
 
 # CellCog - Any-to-Any for Agents

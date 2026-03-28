@@ -4,7 +4,9 @@ description: "Complex ideas need iteration, not conversation. Think → Do → R
 metadata:
   openclaw:
     emoji: "💭"
+    os: [darwin, linux, windows]
 author: CellCog
+homepage: https://cellcog.ai
 dependencies: [cellcog]
 ---
 

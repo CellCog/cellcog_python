@@ -1,10 +1,12 @@
 ---
 name: news-cog
-description: "Frontier search models with multi-angle research on every query. CellCog combines deep reasoning with SOTA search to produce accurate, comprehensive news briefs, reports, and digests — delivered ready for your agent to consume without flooding its context window. AI news summary, daily briefing, news digest, current events, trend monitoring, competitive intelligence, market updates."
+description: "AI news summary and daily briefing powered by CellCog. News digests, competitive intelligence, market updates, trend monitoring, industry reports, and current events research. Multi-source synthesis delivers accurate, comprehensive briefs — ready for agents to consume without context flooding. Frontier search with deep reasoning."
 metadata:
   openclaw:
     emoji: "📰"
+    os: [darwin, linux, windows]
 author: CellCog
+homepage: https://cellcog.ai
 dependencies: [cellcog]
 ---
 

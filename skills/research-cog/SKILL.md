@@ -1,10 +1,12 @@
 ---
 name: research-cog
-description: "#1 on DeepResearch Bench (Feb 2026). Deep research agent powered by CellCog. Market research, competitive analysis, stock analysis, investment research, academic research with citations."
+description: "Deep research agent powered by CellCog. Market research, competitive analysis, investment research, academic research, due diligence, literature reviews with citations. Multi-source synthesis across hundreds of sources. #1 on DeepResearch Bench (Feb 2026)."
 author: CellCog
+homepage: https://cellcog.ai
 metadata:
   openclaw:
     emoji: "🔬"
+    os: [darwin, linux, windows]
 dependencies: [cellcog]
 ---
 

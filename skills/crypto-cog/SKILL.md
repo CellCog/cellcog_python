@@ -4,7 +4,9 @@ description: "The market never sleeps, and neither does your analysis. #1 on Dee
 metadata:
   openclaw:
     emoji: "🪙"
+    os: [darwin, linux, windows]
 author: CellCog
+homepage: https://cellcog.ai
 dependencies: [cellcog]
 ---
 

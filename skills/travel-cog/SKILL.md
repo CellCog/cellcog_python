@@ -1,10 +1,12 @@
 ---
 name: travel-cog
-description: "Real travel planning needs real research — not recycled blog listicles. #1 on DeepResearch Bench (Feb 2026) applied to travel. CellCog researches current prices, visa requirements, weather patterns, local events, and hidden gems, then delivers complete itineraries as beautiful PDFs or interactive dashboards. AI travel planner, trip itinerary, vacation planning, travel research, flight planning, hotel recommendations, travel guide."
+description: "AI travel planning and trip itinerary powered by CellCog. Vacation planning, travel research, flight planning, hotel recommendations, visa requirements, weather patterns, local events, and hidden gems. Complete itineraries as beautiful PDFs or interactive dashboards. Research-first — not recycled blog listicles. #1 on DeepResearch Bench (Feb 2026)."
 metadata:
   openclaw:
     emoji: "✈️"
+    os: [darwin, linux, windows]
 author: CellCog
+homepage: https://cellcog.ai
 dependencies: [cellcog]
 ---
 

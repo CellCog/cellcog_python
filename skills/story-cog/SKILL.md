@@ -1,10 +1,12 @@
 ---
 name: story-cog
-description: Creative writing and storytelling powered by CellCog. Create stories, novels, screenplays, fan fiction, world building, character development, narrative design. AI-powered creative writing assistant.
+description: "AI creative writing and storytelling powered by CellCog. Write novels, short stories, screenplays, fan fiction, poetry. World building, character development, narrative design. Fiction writing for fantasy, sci-fi, mystery, romance, horror, literary fiction. AI story writer and writing assistant."
 metadata:
   openclaw:
     emoji: "📖"
+    os: [darwin, linux, windows]
 author: CellCog
+homepage: https://cellcog.ai
 dependencies: [cellcog]
 ---
 

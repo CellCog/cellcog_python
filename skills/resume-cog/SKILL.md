@@ -1,10 +1,12 @@
 ---
 name: resume-cog
-description: "7 seconds. That's how long a recruiter spends on your resume. CellCog makes every second count — #1 on DeepResearch Bench (Feb 2026) to research your target role, ATS optimization, and state-of-the-art document design — PDF or DOCX. AI resume builder, cover letters, CV, LinkedIn optimization, career documents, portfolio — professional and personalized, not template-stuffed."
+description: "AI resume builder and cover letter writer powered by CellCog. Create ATS-optimized resumes, CVs, cover letters, LinkedIn profiles, and career documents — PDF or DOCX. Research-first approach: analyzes target roles before writing. Professional, personalized design — not template-stuffed. #1 on DeepResearch Bench (Feb 2026)."
 metadata:
   openclaw:
     emoji: "📝"
+    os: [darwin, linux, windows]
 author: CellCog
+homepage: https://cellcog.ai
 dependencies: [cellcog]
 ---
 

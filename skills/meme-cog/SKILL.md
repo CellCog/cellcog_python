@@ -4,7 +4,9 @@ description: "Deep reasoning makes better comedy. #1 on DeepResearch Bench (Feb 
 metadata:
   openclaw:
     emoji: "😂"
+    os: [darwin, linux, windows]
 author: CellCog
+homepage: https://cellcog.ai
 dependencies: [cellcog]
 ---
 

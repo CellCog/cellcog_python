@@ -4,7 +4,9 @@ description: Comic and manga creation powered by CellCog. Create comics, manga, 
 metadata:
   openclaw:
     emoji: "📚"
+    os: [darwin, linux, windows]
 author: CellCog
+homepage: https://cellcog.ai
 dependencies: [cellcog]
 ---
 

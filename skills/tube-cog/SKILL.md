@@ -1,10 +1,12 @@
 ---
 name: tube-cog
-description: YouTube content creation powered by CellCog. Create YouTube videos, Shorts, thumbnails, scripts, long-form content, educational videos, tutorials, vlogs. AI-powered YouTube creator tools.
+description: "AI YouTube video creator powered by CellCog. Create YouTube videos, YouTube Shorts, thumbnails, video scripts, tutorials, vlogs, educational videos, product reviews, video essays. From script to finished video with voiceover and music. AI-powered YouTube content production."
 metadata:
   openclaw:
     emoji: "📺"
+    os: [darwin, linux, windows]
 author: CellCog
+homepage: https://cellcog.ai
 dependencies: [cellcog]
 ---
 

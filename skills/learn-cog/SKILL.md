@@ -1,10 +1,12 @@
 ---
 name: learn-cog
-description: "The best tutors explain the same concept five different ways. CellCog does too — diagrams, analogies, worked examples, practice problems, and interactive explanations. #1 on DeepResearch Bench (Feb 2026). Tutoring, homework help, study guides, exam prep, coding tutorials, language learning — every subject, every level."
+description: "AI tutor and homework help powered by CellCog. Tutoring, study guides, exam prep, coding tutorials, language learning, math help, science explanations, practice problems — every subject, every level. Explains concepts five different ways: diagrams, analogies, worked examples, interactive lessons. #1 on DeepResearch Bench (Feb 2026)."
 metadata:
   openclaw:
     emoji: "📚"
+    os: [darwin, linux, windows]
 author: CellCog
+homepage: https://cellcog.ai
 dependencies: [cellcog]
 ---
 

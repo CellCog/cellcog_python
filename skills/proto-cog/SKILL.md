@@ -4,7 +4,9 @@ description: "Build prototypes you can click. UI/UX wireframes, app mockups, and
 metadata:
   openclaw:
     emoji: "✏️"
+    os: [darwin, linux, windows]
 author: CellCog
+homepage: https://cellcog.ai
 dependencies: [cellcog]
 ---
 

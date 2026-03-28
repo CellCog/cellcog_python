@@ -4,7 +4,9 @@ description: "Original music, fully yours. 5 seconds to 10 minutes using frontie
 metadata:
   openclaw:
     emoji: "🎶"
+    os: [darwin, linux, windows]
 author: CellCog
+homepage: https://cellcog.ai
 dependencies: [cellcog]
 ---
 

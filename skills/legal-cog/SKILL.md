@@ -1,10 +1,12 @@
 ---
 name: legal-cog
-description: "Legal demands two things: frontier-level reasoning and precision document generation. CellCog delivers both. #1 on DeepResearch Bench (Feb 2026) for the intelligence that legal work requires, paired with state-of-the-art document generation for contracts, NDAs, terms of service, privacy policies, compliance reviews, and legal research. AI contract generator, legal document drafting, NDA creator, terms of service, privacy policy, compliance, legal AI."
+description: "AI legal document generation powered by CellCog. Contracts, NDAs, terms of service, privacy policies, freelance agreements, employment contracts, compliance reviews, and legal research. AI contract generator, NDA creator, legal drafting. Frontier-level reasoning for precision legal documents. #1 on DeepResearch Bench (Feb 2026)."
 metadata:
   openclaw:
     emoji: "⚖️"
+    os: [darwin, linux, windows]
 author: CellCog
+homepage: https://cellcog.ai
 dependencies: [cellcog]
 ---
 

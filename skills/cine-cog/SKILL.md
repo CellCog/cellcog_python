@@ -4,7 +4,9 @@ description: "If you can imagine it, CellCog can film it. Grand widescreen cinem
 metadata:
   openclaw:
     emoji: "🎬"
+    os: [darwin, linux, windows]
 author: CellCog
+homepage: https://cellcog.ai
 dependencies: [cellcog]
 ---
 
