@@ -175,6 +175,7 @@ Generated files (PDFs, images, etc.) are automatically downloaded to `~/.cellcog
 | 🌱 Seedance | `seedance-cog` | Seedance × CellCog video production |
 | ✈️ Travel | `travel-cog` | Trip itineraries, travel research, destination planning |
 | 📰 News | `news-cog` | News briefings, competitive intel, trend monitoring |
+| 💻 Coding | `code-cog` | Code generation, debugging, refactoring, co-work |
 
 ## OpenClaw Integration
 

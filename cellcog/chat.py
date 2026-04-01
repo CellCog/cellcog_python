@@ -55,7 +55,7 @@ class ChatManager:
         Args:
             prompt: Initial prompt (can include SHOW_FILE tags for file uploads)
             project_id: Optional CellCog project ID for document context
-            chat_mode: "agent" (fast, iterative), "agent team" (deep reasoning), or "agent team max" (high-stakes)
+            chat_mode: "agent" (fast, iterative), "agent core" (coding/co-work), "agent team" (deep reasoning), or "agent team max" (high-stakes)
             agent_role_id: Optional agent role ID within the project. Requires project_id.
             hc_enabled: Enable Human Computer (co-work) for this chat
             hc_working_directory: Working directory on user's machine for HC commands
@@ -72,6 +72,7 @@ class ChatManager:
         mode_mapping = {
             "agent team max": "agent_team_max",
             "agent team": "agent_in_the_loop",
+            "agent core": "agent_core",
             "agent": "human_in_the_loop",
         }
         api_chat_mode = mode_mapping.get(chat_mode, chat_mode)

@@ -285,10 +285,13 @@ completion = client.wait_for_completion(result["chat_id"], timeout=3600)
 | Mode | Best For | Speed | Min Credits |
 |------|----------|-------|-------------|
 | `"agent"` | Most tasks — images, audio, dashboards, spreadsheets, presentations | Fast (seconds to minutes) | 100 |
+| `"agent core"` | Coding, co-work, terminal operations — lightweight, loads multimedia on demand | Fast | 50 |
 | `"agent team"` | Deep research & multi-angled reasoning across every modality | Slower (5-60 min) | 500 |
 | `"agent team max"` | High-stakes work where extra reasoning depth justifies the cost | Slowest | 2,000 |
 
 **Default to `"agent"`** — it's the most versatile mode. Fast, iterative, and handles most tasks excellently — including deep research when you guide it. Requires ≥100 credits.
+
+**Use `"agent core"` for coding tasks** — the first coding agent built for agents. Lightweight context focused on code, terminal, and file operations. Multimedia tools load on demand when needed. Requires Co-work (CellCog Desktop) for direct machine access. Requires ≥50 credits. See `code-cog` skill for details.
 
 **Use `"agent team"` when the task requires deep, multi-angled reasoning** — the only platform with deep reasoning across every modality. A team of agents that debates, cross-validates, and delivers comprehensive results. Requires ≥500 credits.
 
@@ -296,6 +299,7 @@ completion = client.wait_for_completion(result["chat_id"], timeout=3600)
 
 **When NOT to use each mode:**
 - **Agent**: Avoid when you need deep multi-angled research out of the box (use Agent Team instead).
+- **Agent Core**: Avoid when you primarily need multimedia generation (images, video, audio, PDFs) — use Agent instead, which has all tools pre-loaded.
 - **Agent Team**: Avoid when many iterations are needed — each run costs more. Use Agent for back-and-forth refinement.
 - **Agent Team Max**: Avoid when the marginal quality gain isn't worth the extra time and cost. Prefer Agent Team for most deep research work.
 
@@ -575,6 +579,7 @@ Install capability skills to explore specific capabilities. Each one is built on
 | `travel-cog` | Real travel planning needs real research — not recycled blog listicles. |
 | `news-cog` | Frontier search + multi-angle research. News intelligence without context flooding. |
 | `project-cog` | Knowledge workspaces. Upload docs, get AI-processed context trees, signed URLs. Standalone or with CellCog. |
+| `code-cog` | The first coding agent built for agents. Direct machine access, terminal ops, and on-demand multimedia. |
 
 **This skill shows you HOW to use CellCog. Capability skills show you WHAT's possible.**
 

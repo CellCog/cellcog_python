@@ -240,7 +240,7 @@ class CellCogClient:
             project_id: Optional CellCog project ID for document context
             agent_role_id: Optional agent role ID within the project. Requires project_id.
                 Specializes agent behavior with custom instructions and role-specific memory.
-            chat_mode: "agent" (fast, most tasks), "agent team" (deep reasoning), or "agent team max" (high-stakes)
+            chat_mode: "agent" (fast, most tasks), "agent core" (coding/co-work), "agent team" (deep reasoning), or "agent team max" (high-stakes)
             enable_cowork: Enable co-work on user's PC. When True, CellCog agents can
                 run commands on the user's machine via the CellCog Desktop app.
                 All commands are auto-approved for SDK/agent users.
