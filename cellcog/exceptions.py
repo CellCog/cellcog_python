@@ -214,3 +214,41 @@ class SDKUpgradeRequiredError(CellCogError):
         super().__init__(
             f"SDK upgrade required: v{current_version} → v{minimum_version} or later\n\n{upgrade_instructions}"
         )
+
+
+class GatewayConfigError(CellCogError):
+    """
+    Raised when the OpenClaw Gateway is missing required configuration.
+
+    CellCog agents work as sub-agents in the OpenClaw ecosystem and need
+    sessions_send to deliver task completions back to your session. On
+    OpenClaw 2026.4+, sessions_send is blocked by default on the
+    /tools/invoke HTTP endpoint.
+
+    Attributes:
+        fix_command: The exact command to run to fix the issue.
+        gateway_url: The Gateway URL that was checked.
+    """
+
+    def __init__(self, gateway_url: str):
+        self.gateway_url = gateway_url
+        self.fix_command = "openclaw config set gateway.tools.allow '[\"sessions_send\"]'"
+
+        super().__init__(
+            "CellCog requires sessions_send to be enabled on your OpenClaw Gateway.\n"
+            "\n"
+            "CellCog agents work as your sub-agents in the OpenClaw ecosystem.\n"
+            "Just like any sub-agent needs sessions_send to report results back\n"
+            "to its parent, CellCog uses sessions_send to deliver task completions,\n"
+            "files, and progress updates to your session.\n"
+            "\n"
+            "On OpenClaw 2026.4+, sessions_send is on the default deny list for\n"
+            "the /tools/invoke HTTP endpoint. To enable it (one-time setup):\n"
+            "\n"
+            f"  {self.fix_command}\n"
+            "\n"
+            "Then restart your gateway and retry.\n"
+            "\n"
+            "Without this, CellCog cannot deliver results to your OpenClaw session.\n"
+            "You can still view results at https://cellcog.ai"
+        )

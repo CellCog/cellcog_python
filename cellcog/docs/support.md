@@ -102,6 +102,22 @@ Then call any `create_chat()` or `send_message()` — the daemon auto-restarts.
 
 ---
 
+## OpenClaw 2026.4.x Gateway Configuration
+
+OpenClaw 2026.4+ classifies `sessions_send` as a "dangerous tool" and blocks it at the gateway level by default. CellCog's daemon uses `sessions_send` to deliver task completion notifications to your session.
+
+**Symptoms:** CellCog chats complete on the web platform but notifications are never delivered to your OpenClaw session. Daemon logs may show "Tool not available: sessions_send".
+
+**Fix:** Run once in your OpenClaw environment:
+```bash
+openclaw config set gateway.tools.allow '["sessions_send", "sessions_list"]'
+```
+Then restart the gateway. This is a one-time configuration change.
+
+**Verify:** After restarting, create a simple test chat. If notifications arrive, the fix is working.
+
+---
+
 ## Terms of Service & Privacy
 
 Before using CellCog, please review and agree to our [Terms of Service](https://cellcog.ai/policies/terms) and [Privacy Policy](https://cellcog.ai/policies/privacy-policy).

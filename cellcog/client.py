@@ -17,10 +17,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+import requests as _requests
+
 from .auth import AuthManager
 from .chat import ChatManager
 from .config import Config
-from .exceptions import APIError
+from .exceptions import APIError, GatewayConfigError
 from .files import FileProcessor
 from .message_processor import MessageProcessor
 from .daemon.state import TrackedChat, Listener, StateManager
@@ -98,6 +100,11 @@ class CellCogClient:
         
         # Daemon management
         self._daemon_pid_file = Path("~/.cellcog/daemon.pid").expanduser()
+
+        # Sessions send pre-flight check cache
+        # Maps gateway_url -> (is_available: bool, checked_at: float)
+        self._sessions_send_cache: dict[str, tuple[bool, float]] = {}
+        self._sessions_send_cache_ttl = 60.0  # seconds
 
     # ==================== Configuration ====================
 
@@ -273,7 +280,18 @@ class CellCogClient:
         """
         self.config.require_configured()
         
-        # 1. Create the chat via API
+        # Resolve gateway URL early — needed for pre-flight check
+        gateway_url = gateway_url or os.environ.get(
+            "OPENCLAW_GATEWAY_URL", 
+            "http://127.0.0.1:18789"
+        )
+        
+        # 1. Pre-flight: verify sessions_send is available on the gateway.
+        #    Fails fast before spending credits on a chat whose results
+        #    cannot be delivered.
+        self._require_sessions_send(gateway_url)
+        
+        # 2. Create the chat via API
         api_result = self._chat.create(
             prompt, project_id, chat_mode,
             agent_role_id=agent_role_id,
@@ -282,13 +300,7 @@ class CellCogClient:
         )
         chat_id = api_result["chat_id"]
         
-        # Resolve gateway URL
-        gateway_url = gateway_url or os.environ.get(
-            "OPENCLAW_GATEWAY_URL", 
-            "http://127.0.0.1:18789"
-        )
-        
-        # 2. Write tracking file BEFORE starting daemon
+        # 3. Write tracking file BEFORE starting daemon
         #    This ensures the daemon finds the tracking file during reconcile_state().
         #    If we started daemon first, it could exit before the tracking file exists.
         tracking_info = self._track_chat(
@@ -298,7 +310,7 @@ class CellCogClient:
             task_label=task_label
         )
         
-        # 3. Now ensure daemon is running (tracking file already on disk)
+        # 4. Now ensure daemon is running (tracking file already on disk)
         self._ensure_daemon_running()
         
         # Build helpful explanation
@@ -354,17 +366,20 @@ class CellCogClient:
         """
         self.config.require_configured()
         
-        # 1. Send message via API
-        api_result = self._chat.send_message(chat_id, message)
-        
-        # Resolve gateway URL and task label
+        # Resolve gateway URL early — needed for pre-flight check
         gateway_url = gateway_url or os.environ.get(
             "OPENCLAW_GATEWAY_URL",
             "http://127.0.0.1:18789"
         )
         task_label = task_label or f"continue-{chat_id[:8]}"
         
-        # 2. Write tracking file BEFORE starting daemon
+        # 1. Pre-flight: verify sessions_send is available on the gateway.
+        self._require_sessions_send(gateway_url)
+        
+        # 2. Send message via API
+        api_result = self._chat.send_message(chat_id, message)
+        
+        # 3. Write tracking file BEFORE starting daemon
         tracking_info = self._track_chat(
             chat_id=chat_id,
             session_key=notify_session_key,
@@ -372,7 +387,7 @@ class CellCogClient:
             task_label=task_label
         )
         
-        # 3. Now ensure daemon is running (tracking file already on disk)
+        # 4. Now ensure daemon is running (tracking file already on disk)
         self._ensure_daemon_running()
         
         explanation = (
@@ -1044,6 +1059,98 @@ class CellCogClient:
                 "expiration_hours": expiration_hours,
             },
         )
+
+    # ==================== Gateway Health Check ====================
+
+    def _is_sessions_send_available(self, gateway_url: str) -> bool | None:
+        """
+        Check if sessions_send is available on the OpenClaw Gateway.
+
+        OpenClaw 2026.4+ puts sessions_send on a hard deny list for the
+        /tools/invoke HTTP endpoint by default. Without explicit
+        gateway.tools.allow configuration, the daemon cannot deliver
+        completion notifications to the agent's session.
+
+        Uses a lightweight probe: invoke sessions_send with a dummy
+        session key. If the tool is blocked we get a 404 with
+        "Tool not available"; any other response means the tool is
+        reachable (even if the session itself doesn't exist).
+
+        Results are cached per gateway_url for 60 seconds.
+
+        Args:
+            gateway_url: OpenClaw Gateway URL
+
+        Returns:
+            True if available, False if blocked, None if check failed
+        """
+        # Check cache
+        cached = self._sessions_send_cache.get(gateway_url)
+        if cached:
+            is_available, checked_at = cached
+            if time.time() - checked_at < self._sessions_send_cache_ttl:
+                return is_available
+
+        # Resolve auth token
+        gateway_auth = os.environ.get("OPENCLAW_GATEWAY_TOKEN")
+        headers = {"Content-Type": "application/json"}
+        if gateway_auth:
+            headers["Authorization"] = f"Bearer {gateway_auth}"
+
+        try:
+            resp = _requests.post(
+                f"{gateway_url}/tools/invoke",
+                headers=headers,
+                json={
+                    "tool": "sessions_send",
+                    "args": {
+                        "sessionKey": "__cellcog_preflight__",
+                        "message": "preflight",
+                        "timeoutSeconds": 0,
+                    },
+                },
+                timeout=2.0,
+            )
+
+            if resp.status_code == 404:
+                # 404 from /tools/invoke means tool is not available
+                data = resp.json() if resp.text else {}
+                error_msg = data.get("error", {}).get("message", "")
+                if "not available" in error_msg.lower():
+                    self._sessions_send_cache[gateway_url] = (False, time.time())
+                    return False
+
+            if resp.status_code == 401:
+                # Auth issue — different problem, don't cache as blocked
+                return None
+
+            # Any other response (200 success, 400 bad args, etc.) means
+            # the tool IS available on the gateway
+            self._sessions_send_cache[gateway_url] = (True, time.time())
+            return True
+
+        except Exception:
+            # Network error, timeout, etc. — can't determine, don't warn
+            return None
+
+    def _require_sessions_send(self, gateway_url: str) -> None:
+        """
+        Verify that sessions_send is available on the Gateway. Raises
+        GatewayConfigError if the tool is blocked.
+
+        Called at the start of create_chat() and send_message() to
+        fail fast before spending credits on a chat whose results
+        cannot be delivered.
+
+        Args:
+            gateway_url: OpenClaw Gateway URL to check
+
+        Raises:
+            GatewayConfigError: If sessions_send is on the deny list
+        """
+        available = self._is_sessions_send_available(gateway_url)
+        if available is False:
+            raise GatewayConfigError(gateway_url)
 
     # ==================== Daemon Management ====================
 

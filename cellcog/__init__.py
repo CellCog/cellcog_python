@@ -42,17 +42,19 @@ from .exceptions import (
     ConfigurationError,
     FileDownloadError,
     FileUploadError,
+    GatewayConfigError,
     MaxConcurrencyError,
     PaymentRequiredError,
     SDKUpgradeRequiredError,
 )
 
-__version__ = "1.14.0"
+__version__ = "1.15.0"
 __all__ = [
     "CellCogClient",
     "CellCogError",
     "AccountDisabledError",
     "AuthenticationError",
+    "GatewayConfigError",
     "MaxConcurrencyError",
     "PaymentRequiredError",
     "ChatNotFoundError",
