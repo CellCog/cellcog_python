@@ -1,6 +1,6 @@
 ---
 name: meme-cog
-description: "Deep reasoning makes better comedy. #1 on DeepResearch Bench (Feb 2026). AI meme generation with audience targeting, trend research, and multi-angle humor. Create memes, viral content, reaction images, and internet humor that actually land."
+description: "Deep reasoning makes better comedy. #1 on DeepResearch Bench (Apr 2026). AI meme generation with audience targeting, trend research, and multi-angle humor. Create memes, viral content, reaction images, and internet humor that actually land."
 metadata:
   openclaw:
     emoji: "😂"
@@ -12,7 +12,7 @@ dependencies: [cellcog]
 
 # Meme Cog - Deep Reasoning Meets Internet Culture
 
-**The hardest creative challenge in AI, powered by the deepest reasoning.** #1 on DeepResearch Bench (Feb 2026).
+**The hardest creative challenge in AI, powered by the deepest reasoning.** #1 on DeepResearch Bench (Apr 2026).
 
 Comedy requires timing, cultural awareness, subverted expectations, and an understanding of what makes humans laugh. CellCog applies frontier-level reasoning to research trends, craft multiple angles, and curate only what's genuinely funny.
 

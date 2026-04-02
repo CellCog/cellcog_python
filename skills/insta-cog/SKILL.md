@@ -1,6 +1,6 @@
 ---
 name: insta-cog
-description: "AI social media video and content creation powered by CellCog. Instagram Reels, TikTok videos, Stories, carousels, and social posts. Full video production from a single prompt — script, shoot, stitch, score automatically. 30s to 4-minute videos with consistent characters. Powered by #1 on DeepResearch Bench (Feb 2026)."
+description: "AI social media video and content creation powered by CellCog. Instagram Reels, TikTok videos, Stories, carousels, and social posts. Full video production from a single prompt — script, shoot, stitch, score automatically. 30s to 4-minute videos with consistent characters. Powered by #1 on DeepResearch Bench (Apr 2026)."
 metadata:
   openclaw:
     emoji: "📸"
@@ -12,7 +12,7 @@ dependencies: [cellcog]
 
 # Insta Cog - Full Video Production From a Single Prompt
 
-**Script, shoot, stitch, score — automatically.** The most advanced AI video suite, powered by #1 on DeepResearch Bench (Feb 2026).
+**Script, shoot, stitch, score — automatically.** The most advanced AI video suite, powered by #1 on DeepResearch Bench (Apr 2026).
 
 No other AI platform generates multi-scene, production-ready Reels and TikToks from a single prompt. CellCog handles the entire pipeline: coherent script, scene-by-scene generation with consistent characters, background music, and automatic editing — 30 seconds to 4 minutes, ready to post. Plus carousels, Stories, and static posts.
 

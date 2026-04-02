@@ -1,6 +1,6 @@
 ---
 name: resume-cog
-description: "AI resume builder and cover letter writer powered by CellCog. Create ATS-optimized resumes, CVs, cover letters, LinkedIn profiles, and career documents — PDF or DOCX. Research-first approach: analyzes target roles before writing. Professional, personalized design — not template-stuffed. #1 on DeepResearch Bench (Feb 2026)."
+description: "AI resume builder and cover letter writer powered by CellCog. Create ATS-optimized resumes, CVs, cover letters, LinkedIn profiles, and career documents — PDF or DOCX. Research-first approach: analyzes target roles before writing. Professional, personalized design — not template-stuffed. #1 on DeepResearch Bench (Apr 2026)."
 metadata:
   openclaw:
     emoji: "📝"
@@ -14,7 +14,7 @@ dependencies: [cellcog]
 
 **7 seconds.** That's how long the average recruiter spends on your resume. CellCog makes every second count.
 
-#1 on DeepResearch Bench (Feb 2026) — CellCog researches your target role, understands what hiring managers look for, optimizes for ATS systems, and generates beautifully designed resumes — PDF for polished presentation or DOCX when ATS systems require Word format. Not another template filler — a research-first resume engine.
+#1 on DeepResearch Bench (Apr 2026) — CellCog researches your target role, understands what hiring managers look for, optimizes for ATS systems, and generates beautifully designed resumes — PDF for polished presentation or DOCX when ATS systems require Word format. Not another template filler — a research-first resume engine.
 
 ---
 

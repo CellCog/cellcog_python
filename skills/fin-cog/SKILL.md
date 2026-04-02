@@ -1,6 +1,6 @@
 ---
 name: fin-cog
-description: "AI financial analysis and stock research powered by CellCog. Stock analysis, valuation models, portfolio optimization, earnings breakdowns, investment research, financial statements, tax planning, and DCF modeling. Wall Street-grade deliverables — interactive dashboards, PDF reports, Excel models. #1 on DeepResearch Bench (Feb 2026)."
+description: "AI financial analysis and stock research powered by CellCog. Stock analysis, valuation models, portfolio optimization, earnings breakdowns, investment research, financial statements, tax planning, and DCF modeling. Wall Street-grade deliverables — interactive dashboards, PDF reports, Excel models. #1 on DeepResearch Bench (Apr 2026)."
 metadata:
   openclaw:
     emoji: "💰"
@@ -12,7 +12,7 @@ dependencies: [cellcog]
 
 # Fin Cog - Wall Street-Grade Analysis, Accessible Globally
 
-**Wall Street-grade analysis, accessible globally.** Deep financial reasoning powered by #1 on DeepResearch Bench (Feb 2026) + SOTA financial models.
+**Wall Street-grade analysis, accessible globally.** Deep financial reasoning powered by #1 on DeepResearch Bench (Apr 2026) + SOTA financial models.
 
 The best financial analysis has always lived behind Bloomberg terminals, institutional research desks, and $500/hour consultants. CellCog brings that same depth — stock analysis, valuation models, portfolio optimization, earnings breakdowns — to anyone with a prompt. From raw tickers to boardroom-ready deliverables in one request.
 

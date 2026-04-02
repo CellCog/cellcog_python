@@ -1,6 +1,6 @@
 ---
 name: research-cog
-description: "Deep research agent powered by CellCog. Market research, competitive analysis, investment research, academic research, due diligence, literature reviews with citations. Multi-source synthesis across hundreds of sources. #1 on DeepResearch Bench (Feb 2026)."
+description: "Deep research agent powered by CellCog. Market research, competitive analysis, investment research, academic research, due diligence, literature reviews with citations. Multi-source synthesis across hundreds of sources. #1 on DeepResearch Bench (Apr 2026)."
 author: CellCog
 homepage: https://cellcog.ai
 metadata:
@@ -12,7 +12,7 @@ dependencies: [cellcog]
 
 # Research Cog - Deep Research Powered by CellCog
 
-**#1 on DeepResearch Bench (Feb 2026).** Your AI research analyst for comprehensive, citation-backed research on any topic.
+**#1 on DeepResearch Bench (Apr 2026).** Your AI research analyst for comprehensive, citation-backed research on any topic.
 
 Leaderboard: https://huggingface.co/spaces/muset-ai/DeepResearch-Bench-Leaderboard
 

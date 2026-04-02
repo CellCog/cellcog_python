@@ -47,7 +47,7 @@ from .exceptions import (
     SDKUpgradeRequiredError,
 )
 
-__version__ = "1.13.0"
+__version__ = "1.14.0"
 __all__ = [
     "CellCogClient",
     "CellCogError",

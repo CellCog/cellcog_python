@@ -1334,3 +1334,41 @@ class CellCogClient:
     def check_pending_chats(self) -> list:
         """Check all chats and return recently completed ones."""
         return self._chat.check_pending()
+
+    # ==================== Documentation ====================
+
+    def get_support_docs(self) -> str:
+        """
+        Get CellCog support and troubleshooting documentation.
+
+        Returns markdown covering error handling, recovery patterns,
+        chat deletion, ticket submission, daemon troubleshooting,
+        data privacy, and terms of service.
+
+        Returns:
+            str: Markdown documentation
+        """
+        return self._load_bundled_doc("support.md")
+
+    def get_api_reference(self) -> str:
+        """
+        Get the complete CellCog SDK API reference.
+
+        Returns markdown covering all method signatures, parameters,
+        return types, and exception classes.
+
+        Returns:
+            str: Markdown documentation
+        """
+        return self._load_bundled_doc("api_reference.md")
+
+    def _load_bundled_doc(self, filename: str) -> str:
+        """Load a bundled documentation file from the SDK package."""
+        import os
+        docs_dir = os.path.join(os.path.dirname(__file__), "docs")
+        filepath = os.path.join(docs_dir, filename)
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            return f"Documentation file '{filename}' not found. Try updating the SDK: pip install --upgrade cellcog"

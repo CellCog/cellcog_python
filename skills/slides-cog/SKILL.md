@@ -1,6 +1,6 @@
 ---
 name: slides-cog
-description: "AI presentation and slide deck generation powered by CellCog. Create pitch decks, keynotes, business presentations, educational slides, investor decks — PDF or native PPTX. Deep research fills content from minimal prompts. #1 on DeepResearch Bench (Feb 2026). Professional slide design, charts, and layouts."
+description: "AI presentation and slide deck generation powered by CellCog. Create pitch decks, keynotes, business presentations, educational slides, investor decks — PDF or native PPTX. Deep research fills content from minimal prompts. #1 on DeepResearch Bench (Apr 2026). Professional slide design, charts, and layouts."
 metadata:
   openclaw:
     emoji: "📽️"
@@ -14,7 +14,7 @@ dependencies: [cellcog]
 
 **Great slides need two things: content worth presenting and design worth looking at.** CellCog takes both seriously.
 
-- **Content:** #1 on DeepResearch Bench (Feb 2026) — your prompt can be minimal and CellCog will research and fill in the substance mindfully, not just pad slides with filler
+- **Content:** #1 on DeepResearch Bench (Apr 2026) — your prompt can be minimal and CellCog will research and fill in the substance mindfully, not just pad slides with filler
 - **Design:** State-of-the-art presentation generation — PDF slides or native PPTX, with layouts, typography, and visuals you can present as-is
 
 Pitch decks, keynotes, board presentations, image slideshows — ready to present, not ready to fix.

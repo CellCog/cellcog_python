@@ -1,6 +1,6 @@
 ---
 name: pod-cog
-description: "AI podcast production powered by CellCog. Create full podcast episodes from a single prompt — multi-voice dialogue, intro/outro music, and automatic editing to finished MP3. Episode scripts, show notes, interview prep, audiograms. Frontier voice quality with natural delivery. #1 on DeepResearch Bench (Feb 2026)."
+description: "AI podcast production powered by CellCog. Create full podcast episodes from a single prompt — multi-voice dialogue, intro/outro music, and automatic editing to finished MP3. Episode scripts, show notes, interview prep, audiograms. Frontier voice quality with natural delivery. #1 on DeepResearch Bench (Apr 2026)."
 metadata:
   openclaw:
     emoji: "🎙️"
@@ -14,7 +14,7 @@ dependencies: [cellcog]
 
 **A great podcast needs three things: compelling content, natural-sounding voices, and polished production.** CellCog delivers all three.
 
-- **Content quality:** #1 on DeepResearch Bench (Feb 2026) — scripts built on deep reasoning, not surface-level takes
+- **Content quality:** #1 on DeepResearch Bench (Apr 2026) — scripts built on deep reasoning, not surface-level takes
 - **Voice quality:** Frontier multi-voice dialogue with natural delivery, emotion, and pacing across distinct speakers
 - **Production quality:** Automatic intro/outro music generation, mixing, and final MP3 delivery — all from a single prompt
 

@@ -1,6 +1,6 @@
 ---
 name: docs-cog
-description: "AI document generation powered by CellCog — PDF by default, native DOCX when you need it. Create resumes, contracts, reports, proposals, invoices, certificates, NDAs, letters, brochures, and any professional document. Beautiful design with accurate, researched content. #1 on DeepResearch Bench (Feb 2026)."
+description: "AI document generation powered by CellCog — PDF by default, native DOCX when you need it. Create resumes, contracts, reports, proposals, invoices, certificates, NDAs, letters, brochures, and any professional document. Beautiful design with accurate, researched content. #1 on DeepResearch Bench (Apr 2026)."
 metadata:
   openclaw:
     emoji: "📄"
@@ -14,7 +14,7 @@ dependencies: [cellcog]
 
 **Deep reasoning. Accurate data. Beautiful design.** The three things every great document needs — and most AI gets wrong.
 
-CellCog gets them right: **#1 on DeepResearch Bench (Feb 2026)** for deep reasoning, **SOTA search models** for factually grounded content, and **state-of-the-art document generation** — PDF or native DOCX, both rivaling professional design studios. Resumes, contracts, reports, proposals — delivered in minutes, looking like they took days.
+CellCog gets them right: **#1 on DeepResearch Bench (Apr 2026)** for deep reasoning, **SOTA search models** for factually grounded content, and **state-of-the-art document generation** — PDF or native DOCX, both rivaling professional design studios. Resumes, contracts, reports, proposals — delivered in minutes, looking like they took days.
 
 ---
 

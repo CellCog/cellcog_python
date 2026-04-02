@@ -1,6 +1,6 @@
 ---
 name: brand-cog
-description: "Other tools make logos. CellCog builds brands. #1 on DeepResearch Bench (Feb 2026) for deep strategic reasoning + the widest modality coverage in AI. Brand identity, brand kits, color palettes, typography, brand guidelines, logo design, visual identity, social media, web design, video — all from one brief."
+description: "Other tools make logos. CellCog builds brands. #1 on DeepResearch Bench (Apr 2026) for deep strategic reasoning + the widest modality coverage in AI. Brand identity, brand kits, color palettes, typography, brand guidelines, logo design, visual identity, social media, web design, video — all from one brief."
 metadata:
   openclaw:
     emoji: "🏷️"
@@ -12,7 +12,7 @@ dependencies: [cellcog]
 
 # Brand Cog - Build Brands, Not Just Logos
 
-**Other tools make logos. CellCog builds brands.** #1 on DeepResearch Bench (Feb 2026) for deep strategic reasoning + the widest modality coverage in AI.
+**Other tools make logos. CellCog builds brands.** #1 on DeepResearch Bench (Apr 2026) for deep strategic reasoning + the widest modality coverage in AI.
 
 Brand building demands two things: deep understanding of your positioning, audience, and competitors — and the ability to produce assets across every format. CellCog delivers both in one request: logos, color systems, typography, brand guidelines, social templates, web assets, and video, all cohesive from a single brief.
 

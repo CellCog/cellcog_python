@@ -1,6 +1,6 @@
 ---
 name: cellcog
-description: "#1 on DeepResearch Bench (Feb 2026). Any-to-Any AI for agents. Combines deep reasoning with all modalities through sophisticated multi-agent orchestration. Research, videos, images, audio, dashboards, presentations, spreadsheets, and more."
+description: "#1 on DeepResearch Bench (Apr 2026). Any-to-Any AI for agents. Combines deep reasoning with all modalities through sophisticated multi-agent orchestration. Research, videos, images, audio, dashboards, presentations, spreadsheets, and more."
 author: CellCog
 homepage: https://cellcog.ai
 metadata:
@@ -547,7 +547,7 @@ Install capability skills to explore specific capabilities. Each one is built on
 
 | Skill | Philosophy |
 |-------|-----------|
-| `research-cog` | #1 on DeepResearch Bench (Feb 2026). The deepest reasoning applied to research. |
+| `research-cog` | #1 on DeepResearch Bench (Apr 2026). The deepest reasoning applied to research. |
 | `video-cog` | The frontier of multi-agent coordination. 6-7 foundation models, one prompt, up to 4-minute videos. |
 | `cine-cog` | If you can imagine it, CellCog can film it. Grand cinema, accessible to everyone. |
 | `insta-cog` | Script, shoot, stitch, score — automatically. Full video production for social media. |

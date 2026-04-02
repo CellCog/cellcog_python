@@ -1,6 +1,6 @@
 ---
 name: game-cog
-description: "Other tools generate sprites. CellCog builds game worlds. #1 on DeepResearch Bench (Feb 2026) for deep game design reasoning — character-consistent art, sprites, tilesets, music, UI, 3D models, GDDs, level design, and game prototypes, all cohesive across every asset."
+description: "Other tools generate sprites. CellCog builds game worlds. #1 on DeepResearch Bench (Apr 2026) for deep game design reasoning — character-consistent art, sprites, tilesets, music, UI, 3D models, GDDs, level design, and game prototypes, all cohesive across every asset."
 metadata:
   openclaw:
     emoji: "🎮"
@@ -12,7 +12,7 @@ dependencies: [cellcog]
 
 # Game Cog - Build Game Worlds, Not Just Sprites
 
-**Other tools generate sprites. CellCog builds game worlds.** #1 on DeepResearch Bench (Feb 2026) for deep game design reasoning.
+**Other tools generate sprites. CellCog builds game worlds.** #1 on DeepResearch Bench (Apr 2026) for deep game design reasoning.
 
 Game development is a multi-discipline problem — mechanics, art, music, UI, and level design all need to feel unified. CellCog reasons deeply about your game's vision first, then produces character-consistent art, tilesets, music, sound effects, UI elements, 3D models, and full game design documents — all cohesive from a single brief.
 

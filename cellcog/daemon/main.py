@@ -31,8 +31,8 @@ from .state import Listener, StateManager, TrackedChat
 log = logging.getLogger(__name__)
 
 # Credit visibility thresholds
-HIGH_USAGE_THRESHOLD = 500  # credits — triggers usage warning in notifications
-LOW_BALANCE_THRESHOLD = 200  # credits — triggers "add more credits" warning
+HIGH_USAGE_THRESHOLD = 1000  # credits — triggers usage warning in notifications
+LOW_BALANCE_THRESHOLD = 150  # credits — triggers low balance warning with payment links
 BILLING_URL = "https://cellcog.ai/profile?tab=billing"
 
 CREDIT_USAGE_WARNINGS = [

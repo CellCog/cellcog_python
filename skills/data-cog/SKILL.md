@@ -1,6 +1,6 @@
 ---
 name: data-cog
-description: "AI data analysis and visualization powered by CellCog. Upload CSVs and get charts, dashboards, statistical reports, and clean data back. Data cleaning, exploratory analysis, hypothesis testing, ML model evaluation, dataset profiling, and data visualization. Full Python access. #1 on DeepResearch Bench (Feb 2026). Analyzes everything, presents it beautifully."
+description: "AI data analysis and visualization powered by CellCog. Upload CSVs and get charts, dashboards, statistical reports, and clean data back. Data cleaning, exploratory analysis, hypothesis testing, ML model evaluation, dataset profiling, and data visualization. Full Python access. #1 on DeepResearch Bench (Apr 2026). Analyzes everything, presents it beautifully."
 metadata:
   openclaw:
     emoji: "🔢"
@@ -12,7 +12,7 @@ dependencies: [cellcog]
 
 # Data Cog - Your Data Has Answers, CellCog Finds Them
 
-**Your data has answers. CellCog asks the right questions.** #1 on DeepResearch Bench (Feb 2026) + frontier coding agent.
+**Your data has answers. CellCog asks the right questions.** #1 on DeepResearch Bench (Apr 2026) + frontier coding agent.
 
 Most AI tools return code when you ask about data. CellCog returns answers — actual charts, clean datasets, statistical reports, and visual dashboards. Upload messy CSVs with a minimal prompt, and CellCog's coding agent explores your data, finds the patterns, and presents them beautifully. Full Python access for everything from data cleaning to ML model evaluation.
 
