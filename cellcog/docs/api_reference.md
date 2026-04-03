@@ -13,13 +13,18 @@ client = CellCogClient(config_path=None)
 
 ### create_chat()
 
-Create a new CellCog task. Returns immediately — results delivered via daemon.
+Create a new CellCog task. Two delivery modes:
+- `wait_for_completion` (default): Blocks until done. Works with any agent.
+- `notify_on_completion`: Returns immediately. OpenClaw only.
 
 ```python
 result = client.create_chat(
     prompt: str,                          # Task description (required)
-    notify_session_key: str,              # Where to deliver results (required)
-    task_label: str,                      # Human-readable label (required)
+    task_label: str = "",                 # Human-readable label
+    delivery: str = "wait_for_completion",# "wait_for_completion" or "notify_on_completion"
+    timeout: int = 1800,                  # Max wait seconds (wait mode only)
+    notify_session_key: str = None,       # OpenClaw session key (notify mode only)
+    gateway_url: str = None,              # OpenClaw Gateway URL (notify mode only)
     chat_mode: str = "agent",             # "agent", "agent core", "agent team", "agent team max"
     project_id: str = None,               # Project context (see project-cog)
     agent_role_id: str = None,            # Specialized role (requires project_id)
@@ -28,31 +33,43 @@ result = client.create_chat(
 )
 ```
 
-**Returns:** `{"chat_id": str, "status": "tracking", "listeners": int, "explanation": str}`
+**Returns (all modes):**
+```python
+{
+    "chat_id": str,        # CellCog chat ID
+    "is_operating": bool,  # True = still working, False = done
+    "status": str,         # "completed" | "tracking" | "timeout"
+    "message": str,        # THE printable message — always print in full
+}
+```
 
 **Raises:**
 - `PaymentRequiredError` (402) — insufficient credits
 - `MaxConcurrencyError` (429) — too many parallel chats
 - `AccountDisabledError` (403) — account flagged or disabled
+- `GatewayConfigError` — sessions_send blocked (notify mode only)
 
 ### send_message()
 
-Continue an existing conversation.
+Continue an existing conversation. Same delivery modes as `create_chat()`.
 
 ```python
 result = client.send_message(
     chat_id: str,                         # Existing chat (required)
     message: str,                         # Follow-up message (required)
-    notify_session_key: str,              # Where to deliver results (required)
-    task_label: str,                      # Label for this message (required)
+    task_label: str = None,               # Label for this message
+    delivery: str = "wait_for_completion",# "wait_for_completion" or "notify_on_completion"
+    timeout: int = 1800,                  # Max wait seconds (wait mode only)
+    notify_session_key: str = None,       # OpenClaw session key (notify mode only)
+    gateway_url: str = None,              # OpenClaw Gateway URL (notify mode only)
 )
 ```
 
-**Returns:** `{"chat_id": str, "status": "tracking", "listeners": int, "explanation": str}`
+**Returns:** Same `{chat_id, is_operating, status, message}` shape.
 
 ### wait_for_completion()
 
-Block until a chat finishes operating.
+Block until a chat finishes operating. Use to resume waiting after a timeout.
 
 ```python
 completion = client.wait_for_completion(
@@ -61,15 +78,22 @@ completion = client.wait_for_completion(
 )
 ```
 
-**Returns:**
+**Returns:** Same `{chat_id, is_operating, status, message}` shape.
+- `status: "completed"` — chat finished, `message` contains full results
+- `status: "timeout"` — still working, `message` contains progress
+
+### get_history()
+
+Full chat history. Use when original delivery was missed or for manual inspection.
+
 ```python
-{
-    "chat_id": str,
-    "is_operating": bool,       # False = done, True = timeout reached
-    "status": str,              # "completed" | "waiting"
-    "status_message": str
-}
+result = client.get_history(
+    chat_id: str,
+    download_files: bool = True,
+)
 ```
+
+**Returns:** Same `{chat_id, is_operating, status, message}` shape with full history.
 
 ### get_status()
 
@@ -79,21 +103,11 @@ Quick status check (no message content).
 status = client.get_status(chat_id: str)
 ```
 
-**Returns:** `{"is_operating": bool, ...}`
-
-### get_history()
-
-Full chat history with formatted messages.
-
-```python
-result = client.get_history(chat_id: str)
-```
-
-**Returns:** `{"is_operating": bool, "formatted_output": str, "messages": list}`
+**Returns:** `{"is_operating": bool, "status": str, "name": str, ...}`
 
 ### delete_chat()
 
-Permanently delete a chat and all server-side data.
+Permanently delete a chat and all server-side data (~15 seconds).
 
 ```python
 result = client.delete_chat(chat_id: str)
@@ -141,7 +155,7 @@ Check if CellCog Desktop is connected.
 
 ```python
 status = client.get_desktop_status()
-# {"connected": bool, ...}
+# {"connected": bool, "system_info": {...} | None, ...}
 ```
 
 ### get_desktop_download_urls()
@@ -150,7 +164,7 @@ Get platform-specific download URLs and install commands.
 
 ```python
 info = client.get_desktop_download_urls()
-# {"platforms": {"darwin": {...}, "linux": {...}, "windows": {...}}}
+# {"mac": {"url": str, "install_commands": [...]}, "windows": {...}, "linux": {...}, "post_install": str}
 ```
 
 ---
@@ -161,6 +175,7 @@ info = client.get_desktop_download_urls()
 
 ```python
 projects = client.list_projects()
+# {"projects": [{"id", "name", "is_admin", "context_tree_id", ...}]}
 ```
 
 ### create_project()
@@ -178,7 +193,7 @@ project = client.get_project(project_id: str)
 ### update_project()
 
 ```python
-project = client.update_project(project_id: str, name: str = None, instructions: str = None)
+result = client.update_project(project_id: str, name: str = None, instructions: str = None)
 ```
 
 ### delete_project()
@@ -205,7 +220,6 @@ docs = client.list_documents(context_tree_id: str)
 result = client.upload_document(
     context_tree_id: str,
     file_path: str,
-    target_path: str = None,
     brief_context: str = None,
 )
 ```
@@ -214,6 +228,13 @@ result = client.upload_document(
 
 ```python
 result = client.delete_document(context_tree_id: str, file_id: str)
+```
+
+### bulk_delete_documents()
+
+```python
+result = client.bulk_delete_documents(context_tree_id: str, file_ids: list)
+# {"deleted": int, "failed": int, "results": {...}}
 ```
 
 ### get_context_tree_markdown()
@@ -225,7 +246,21 @@ tree = client.get_context_tree_markdown(context_tree_id: str, include_long_descr
 ### get_document_signed_urls()
 
 ```python
-urls = client.get_document_signed_urls(context_tree_id: str, file_ids: list)
+urls = client.get_document_signed_urls(context_tree_id: str, file_ids: list, expiration_hours: int = 1)
+# {"urls": {file_id: url_or_null}, "errors": {file_id: error_msg}}
+```
+
+### get_document_signed_urls_by_path()
+
+Get signed URLs using file paths from the context tree markdown (no file IDs needed).
+
+```python
+urls = client.get_document_signed_urls_by_path(
+    context_tree_id: str,
+    file_paths: list,
+    expiration_hours: int = 1,
+)
+# {"urls": {path: url_or_null}, "errors": {path: error_msg}}
 ```
 
 ---
@@ -238,11 +273,27 @@ urls = client.get_document_signed_urls(context_tree_id: str, file_ids: list)
 result = client.create_ticket(
     type: str,              # "support", "feedback", "feature_request", "bug_report"
     title: str,
-    description: str = "",
+    description: str,
     chat_id: str = None,
     tags: list = None,
     priority: str = "medium",  # "low", "medium", "high", "critical"
 )
+```
+
+---
+
+## Documentation
+
+### get_support_docs()
+
+```python
+docs = client.get_support_docs()  # Returns markdown string
+```
+
+### get_api_reference()
+
+```python
+docs = client.get_api_reference()  # Returns markdown string
 ```
 
 ---
@@ -258,7 +309,10 @@ from cellcog.exceptions import (
     PaymentRequiredError,      # Insufficient credits (includes top_ups, billing_url)
     MaxConcurrencyError,       # Too many parallel chats
     AccountDisabledError,      # Account flagged or disabled
-    UpgradeRequiredError,      # SDK version too old
+    SDKUpgradeRequiredError,   # SDK version too old
+    GatewayConfigError,        # sessions_send blocked on OpenClaw Gateway
+    FileUploadError,           # File upload failed
+    FileDownloadError,         # File download failed
 )
 ```
 
@@ -274,3 +328,7 @@ from cellcog.exceptions import (
 - `max_parallel`: Maximum allowed with current balance
 - `effective_balance`: Current credit balance
 - `credits_per_slot`: Credits per additional slot (500)
+
+### GatewayConfigError Attributes
+- `gateway_url`: The Gateway URL that was checked
+- `fix_command`: The exact command to run to fix the issue

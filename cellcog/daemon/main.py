@@ -243,12 +243,20 @@ class CellCogDaemon:
         """
         Handle chat completion.
 
-        1. IMMEDIATELY remove from tracking to prevent duplicate processing
+        Behavior depends on delivery_mode:
+        - notify_on_completion: fetch history, process, deliver via sessions_send, mark seen
+        - wait_for_completion: just remove tracking file (signals SDK to process results)
+
+        Steps (notify_on_completion):
+        1. Remove from tracking to prevent duplicates
         2. Clear interim state
-        3. Get full history (guaranteed to have all blob URLs)
-        4. For each listener: process messages with seen index, notify
-        5. Remove tracking file
-        6. If no more tracked chats, shut down daemon
+        3. Get full history + process messages + deliver via sessions_send
+        4. Mark chat seen, remove tracking file
+
+        Steps (wait_for_completion):
+        1. Remove from tracking to prevent duplicates
+        2. Clear interim state
+        3. Remove tracking file (SDK detects this and processes results itself)
         """
         # IMMEDIATELY remove from tracking to prevent duplicate processing
         # This is critical because CellCog may send CHAT_COMPLETED twice
@@ -264,8 +272,23 @@ class CellCogDaemon:
             log.warning(f"handle_completion called for unknown/already-processed chat: {chat_id}")
             return
 
-        log.info(f"Processing completion for {chat_id} ({len(chat.listeners)} listeners)")
+        delivery_mode = getattr(chat, "delivery_mode", "notify_on_completion")
+        log.info(f"Processing completion for {chat_id} (mode={delivery_mode}, {len(chat.listeners)} listeners)")
 
+        # ── wait_for_completion mode ──
+        # SDK is polling the tracking file. Just remove it to signal completion.
+        # The SDK handles history fetch, file downloads, and mark_chat_seen.
+        if delivery_mode == "wait_for_completion":
+            self.state.remove_tracked(chat_id)
+            log.info(f"[wait_for_completion] Tracking file removed for {chat_id} — SDK will process results")
+
+            await self._maybe_disconnect_websocket()
+            if not self.tracked_chats:
+                log.info("All tracked chats completed. Daemon shutting down.")
+                self.running = False
+            return
+
+        # ── notify_on_completion mode (existing behavior) ──
         try:
             # 1. Get full history
             history = self._get_chat_history(chat_id)
@@ -390,19 +413,12 @@ class CellCogDaemon:
             parts.append("")
             parts.append(f"Wallet balance: {wallet_balance:,} credits")
 
-            # Credit warnings with payment links (only shown on low balance)
-            account_warnings = self._build_credit_warnings(chat_credits, wallet_balance)
-            if account_warnings:
-                parts.append("")
-                parts.append(account_warnings)
-
         # ── Next Steps ──
         parts.append("")
         parts.append("── Next Steps ────────────────────────────────")
         parts.append("")
         parts.append(
-            f'To continue: client.send_message(chat_id="{chat_id}", message="...", '
-            f'notify_session_key="agent:main:main", task_label="continue")'
+            f'To continue: client.send_message(chat_id="{chat_id}", message="...")'
         )
         parts.append(f'To give feedback: client.create_ticket(type="feedback", title="...", chat_id="{chat_id}")')
 
@@ -549,11 +565,35 @@ class CellCogDaemon:
 
         log.debug(f"Collected update for {chat_id}: {text[:50]}...")
 
+        # For wait_for_completion mode: persist updates to disk so the SDK
+        # can read them on timeout to show progress to the caller.
+        self._persist_interim_updates(chat_id)
+
+    def _persist_interim_updates(self, chat_id: str):
+        """Write collected updates to disk for SDK to read (wait_for_completion mode)."""
+        updates = self.agent_updates.get(chat_id, [])
+        if not updates:
+            return
+        try:
+            updates_dir = self.state.chats_dir / chat_id
+            updates_dir.mkdir(parents=True, exist_ok=True)
+            updates_file = updates_dir / ".interim_updates.json"
+            updates_file.write_text(json.dumps(updates))
+        except Exception as e:
+            log.debug(f"Failed to persist interim updates for {chat_id}: {e}")
+
     def _clear_interim_state(self, chat_id: str):
-        """Clear interim state for a chat."""
+        """Clear interim state for a chat (memory + disk)."""
         self.agent_updates.pop(chat_id, None)
         self.last_update_delivery.pop(chat_id, None)
         self.chat_credit_accumulators.pop(chat_id, None)
+
+        # Clean up interim updates file
+        try:
+            updates_file = self.state.chats_dir / chat_id / ".interim_updates.json"
+            updates_file.unlink(missing_ok=True)
+        except Exception:
+            pass
 
     async def _interim_update_loop(self):
         """

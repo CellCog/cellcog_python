@@ -247,6 +247,8 @@ async def deliver_with_fallback(
     Deliver message to session with parent fallback chain.
     
     Walks up the parent chain until delivery succeeds or we reach root.
+    If session listing failed (empty active_sessions), falls back to
+    direct delivery to the original session key without parent chain.
     
     Args:
         gateway_url: Gateway URL
@@ -258,6 +260,27 @@ async def deliver_with_fallback(
     Returns:
         True if message was delivered to any session in the chain
     """
+    # Resilience: if sessions_list failed (tool blocked, auth issue, etc.),
+    # skip the parent fallback chain and try direct delivery to the target.
+    # sessions_send may still work even when sessions_list doesn't.
+    if not active_sessions:
+        log.info(
+            f"No active sessions available (sessions_list may have failed). "
+            f"Attempting direct delivery to {session_key}"
+        )
+        success = await send_to_session(
+            gateway_url=gateway_url,
+            gateway_auth=gateway_auth,
+            session_key=session_key,
+            message=message
+        )
+        if success:
+            log.info(f"Direct delivery to {session_key} succeeded (without session listing)")
+            return True
+        log.warning(f"Direct delivery to {session_key} also failed")
+        return False
+
+    # Normal path: walk the parent chain using session listing data
     current_key = session_key
     attempted = set()
     
@@ -290,6 +313,19 @@ async def deliver_with_fallback(
         # Try parent session
         current_key = get_parent_session_key(current_key)
     
+    # Last resort: if parent chain walk found no valid sessions,
+    # try direct delivery to the original target anyway
+    log.info(f"Parent chain exhausted for {session_key}. Trying direct delivery as last resort.")
+    success = await send_to_session(
+        gateway_url=gateway_url,
+        gateway_auth=gateway_auth,
+        session_key=session_key,
+        message=message
+    )
+    if success:
+        log.info(f"Last-resort direct delivery to {session_key} succeeded")
+        return True
+
     log.warning(f"Could not deliver to {session_key} or any parent. Attempted: {attempted}")
     return False
 
@@ -327,6 +363,14 @@ async def deliver_to_all_listeners(
         
         # Fetch active sessions once per gateway
         active_sessions = await list_sessions(gateway_url, auth)
+        
+        if not active_sessions:
+            log.warning(
+                f"sessions_list returned empty for {gateway_url}. "
+                f"This may indicate: sessions_list is on the deny list, "
+                f"auth is misconfigured, or the gateway is unreachable. "
+                f"Will attempt direct delivery via sessions_send."
+            )
         
         # Deliver to each listener
         for listener in gateway_listeners:

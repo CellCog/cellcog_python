@@ -56,11 +56,15 @@ class TrackedChat:
     Attributes:
         chat_id: CellCog chat ID
         listeners: List of sessions listening for updates
+        delivery_mode: How results should be delivered
+            - "notify_on_completion": daemon delivers via sessions_send (OpenClaw)
+            - "wait_for_completion": SDK polls tracking file; daemon only monitors
         created_at: When tracking started
         last_verified_at: Last time we verified chat status
     """
     chat_id: str
     listeners: list[Listener]
+    delivery_mode: str = "notify_on_completion"  # "notify_on_completion" | "wait_for_completion"
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     last_verified_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     
@@ -69,6 +73,7 @@ class TrackedChat:
         return {
             "chat_id": self.chat_id,
             "listeners": [l.to_dict() for l in self.listeners],
+            "delivery_mode": self.delivery_mode,
             "created_at": self.created_at,
             "last_verified_at": self.last_verified_at
         }
@@ -79,6 +84,7 @@ class TrackedChat:
         return cls(
             chat_id=data["chat_id"],
             listeners=[Listener.from_dict(l) for l in data.get("listeners", [])],
+            delivery_mode=data.get("delivery_mode", "notify_on_completion"),
             created_at=data.get("created_at", datetime.now(timezone.utc).isoformat()),
             last_verified_at=data.get("last_verified_at", datetime.now(timezone.utc).isoformat())
         )

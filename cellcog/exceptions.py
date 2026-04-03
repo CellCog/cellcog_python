@@ -232,23 +232,38 @@ class GatewayConfigError(CellCogError):
 
     def __init__(self, gateway_url: str):
         self.gateway_url = gateway_url
-        self.fix_command = "openclaw config set gateway.tools.allow '[\"sessions_send\"]'"
+        self.fix_command = (
+            "openclaw config set gateway.tools.allow "
+            "'[\"sessions_send\", \"sessions_list\"]'"
+        )
 
         super().__init__(
-            "CellCog requires sessions_send to be enabled on your OpenClaw Gateway.\n"
+            "CellCog requires sessions_send and sessions_list to be enabled on your OpenClaw Gateway.\n"
+            "\n"
+            "create_chat() and send_message() are blocked until this is resolved.\n"
             "\n"
             "CellCog agents work as your sub-agents in the OpenClaw ecosystem.\n"
-            "Just like any sub-agent needs sessions_send to report results back\n"
+            "Just like any sub-agent needs session tools to report results back\n"
             "to its parent, CellCog uses sessions_send to deliver task completions,\n"
-            "files, and progress updates to your session.\n"
+            "files, and progress updates to your session, and sessions_list to\n"
+            "verify session availability for reliable delivery.\n"
             "\n"
-            "On OpenClaw 2026.4+, sessions_send is on the default deny list for\n"
-            "the /tools/invoke HTTP endpoint. To enable it (one-time setup):\n"
+            "On OpenClaw 2026.4+, these tools are on the default deny list for\n"
+            "the /tools/invoke HTTP endpoint. To enable them (one-time setup):\n"
             "\n"
             f"  {self.fix_command}\n"
             "\n"
-            "Then restart your gateway and retry.\n"
+            "Then restart your gateway and retry create_chat() or send_message().\n"
             "\n"
             "Without this, CellCog cannot deliver results to your OpenClaw session.\n"
-            "You can still view results at https://cellcog.ai"
+            "You can still view results at https://cellcog.ai\n"
+            "\n"
+            "NOT USING OPENCLAW?\n"
+            "If you're using Cursor, Claude Code, or another non-OpenClaw agent,\n"
+            "use delivery='wait_for_completion' (the default) instead of\n"
+            "notify_on_completion. It works with any agent and doesn't require\n"
+            "gateway configuration:\n"
+            "\n"
+            "  result = client.create_chat(prompt='...', task_label='my-task')\n"
+            "  # Blocks until done, returns full results — no gateway needed"
         )

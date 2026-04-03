@@ -106,6 +106,10 @@ class CellCogClient:
         self._sessions_send_cache: dict[str, tuple[bool, float]] = {}
         self._sessions_send_cache_ttl = 60.0  # seconds
 
+        # Guard against re-entrant daemon checks (prevents RecursionError
+        # when _is_daemon_alive triggers _kill_daemon during concurrent calls)
+        self._daemon_check_in_progress = False
+
     # ==================== Configuration ====================
 
     def get_account_status(self) -> dict:
@@ -224,8 +228,10 @@ class CellCogClient:
     def create_chat(
         self,
         prompt: str,
-        notify_session_key: str,
-        task_label: str,
+        notify_session_key: Optional[str] = None,
+        task_label: str = "",
+        delivery: str = "wait_for_completion",
+        timeout: int = 1800,
         gateway_url: Optional[str] = None,
         project_id: Optional[str] = None,
         agent_role_id: Optional[str] = None,
@@ -234,64 +240,91 @@ class CellCogClient:
         cowork_working_directory: Optional[str] = None,
     ) -> dict:
         """
-        Create a CellCog chat and return immediately.
-        
-        A background daemon monitors the chat via WebSocket and will deliver
-        the results to your session when complete.
-        
+        Create a CellCog chat.
+
+        Two delivery modes:
+        - "wait_for_completion" (default): Blocks until done. Returns full results.
+          Works with ANY agent (OpenClaw, Cursor, Claude Code, etc.).
+        - "notify_on_completion": Returns immediately. Daemon delivers results
+          to your OpenClaw session via sessions_send. Requires notify_session_key.
+
         Args:
             prompt: Task description (supports SHOW_FILE tags for file uploads)
-            notify_session_key: Your session key for completion notification
+            notify_session_key: OpenClaw session key (required for notify_on_completion,
+                e.g., "agent:main:main"). If provided without explicit delivery param,
+                automatically uses notify_on_completion for backward compatibility.
             task_label: Human-readable label (appears in notification)
-            gateway_url: OpenClaw Gateway URL (default: from OPENCLAW_GATEWAY_URL env)
+            delivery: "wait_for_completion" (default, universal) or
+                "notify_on_completion" (OpenClaw only, fire-and-forget)
+            timeout: Max seconds to wait (wait_for_completion mode only, default 1800)
+            gateway_url: OpenClaw Gateway URL (notify_on_completion only)
             project_id: Optional CellCog project ID for document context
-            agent_role_id: Optional agent role ID within the project. Requires project_id.
-                Specializes agent behavior with custom instructions and role-specific memory.
-            chat_mode: "agent" (fast, most tasks), "agent core" (coding/co-work), "agent team" (deep reasoning), or "agent team max" (high-stakes)
-            enable_cowork: Enable co-work on user's PC. When True, CellCog agents can
-                run commands on the user's machine via the CellCog Desktop app.
-                All commands are auto-approved for SDK/agent users.
-            cowork_working_directory: Working directory on user's machine for co-work
-                commands. Only used when enable_cowork=True.
-        
+            agent_role_id: Optional agent role ID within the project
+            chat_mode: "agent", "agent core", "agent team", or "agent team max"
+            enable_cowork: Enable co-work on user's PC
+            cowork_working_directory: Working directory for co-work commands
+
         Returns:
-            {
-                "chat_id": str,              # Use this to reference the chat
-                "status": "tracking",        # Daemon is monitoring this chat
-                "uploaded_files": [...],     # Files uploaded from SHOW_FILE tags
-                "tracking_info": {
-                    "daemon_active": bool,   # Whether daemon process is running
-                    "listeners": int,        # Number of sessions listening
-                },
-                "next_steps": str            # What to expect next
-            }
-        
-        Example:
+            notify_on_completion: {"chat_id", "status", "explanation", ...}
+            wait_for_completion: {"chat_id", "is_operating", "formatted_output",
+                "downloaded_files", "credits_used", ...} on completion, or
+                {"chat_id", "is_operating", "status": "timeout", "progress", ...}
+
+        Examples:
+            # Universal (works with any agent)
             result = client.create_chat(
-                prompt="Fix the bug in main.py at line 42",
-                notify_session_key="agent:main:main",
-                task_label="fix-bug",
-                enable_cowork=True,
-                cowork_working_directory="/Users/me/project"
+                prompt="Research quantum computing advances",
+                task_label="research",
             )
-            
-            # Continue with other work while CellCog processes...
-            # You'll receive notification at your session when complete.
+            # Blocks until done, returns full results
+
+            # OpenClaw fire-and-forget
+            result = client.create_chat(
+                prompt="Research quantum computing advances",
+                notify_session_key="agent:main:main",
+                task_label="research",
+            )
+            # Returns immediately, daemon delivers later
+
+            # Explicit delivery mode
+            result = client.create_chat(
+                prompt="Research quantum computing advances",
+                task_label="research",
+                delivery="notify_on_completion",
+                notify_session_key="agent:main:main",
+            )
         """
         self.config.require_configured()
-        
-        # Resolve gateway URL early — needed for pre-flight check
+
+        # ── Resolve delivery mode ──
+        # Backward compat: if notify_session_key provided, infer notify mode
+        if notify_session_key and delivery == "wait_for_completion":
+            delivery = "notify_on_completion"
+
+        if delivery not in ("notify_on_completion", "wait_for_completion"):
+            raise ValueError(
+                f"Invalid delivery mode: '{delivery}'. "
+                "Use 'notify_on_completion' (OpenClaw) or 'wait_for_completion' (universal)."
+            )
+
+        if delivery == "notify_on_completion" and not notify_session_key:
+            raise ValueError(
+                "notify_on_completion requires notify_session_key. "
+                "Example: notify_session_key='agent:main:main'\n"
+                "Or use delivery='wait_for_completion' (default) which works with any agent."
+            )
+
+        # ── Resolve gateway URL (needed for notify mode) ──
         gateway_url = gateway_url or os.environ.get(
-            "OPENCLAW_GATEWAY_URL", 
+            "OPENCLAW_GATEWAY_URL",
             "http://127.0.0.1:18789"
         )
-        
-        # 1. Pre-flight: verify sessions_send is available on the gateway.
-        #    Fails fast before spending credits on a chat whose results
-        #    cannot be delivered.
-        self._require_sessions_send(gateway_url)
-        
-        # 2. Create the chat via API
+
+        # ── Pre-flight check (notify mode only) ──
+        if delivery == "notify_on_completion":
+            self._require_sessions_send(gateway_url)
+
+        # ── Create the chat via API ──
         api_result = self._chat.create(
             prompt, project_id, chat_mode,
             agent_role_id=agent_role_id,
@@ -299,117 +332,165 @@ class CellCogClient:
             hc_working_directory=cowork_working_directory,
         )
         chat_id = api_result["chat_id"]
-        
-        # 3. Write tracking file BEFORE starting daemon
-        #    This ensures the daemon finds the tracking file during reconcile_state().
-        #    If we started daemon first, it could exit before the tracking file exists.
-        tracking_info = self._track_chat(
-            chat_id=chat_id,
-            session_key=notify_session_key,
-            gateway_url=gateway_url,
-            task_label=task_label
-        )
-        
-        # 4. Now ensure daemon is running (tracking file already on disk)
-        self._ensure_daemon_running()
-        
-        # Build helpful explanation
-        explanation = (
-            f"✓ Chat '{task_label}' created (ID: {chat_id})\n"
-            f"✓ Daemon is monitoring via WebSocket\n"
-            f"✓ You'll receive notification at '{notify_session_key}' when complete\n\n"
-            f"You can continue with other work. Do NOT poll - the daemon will notify you automatically "
-            f"with the full response and any generated files."
-        )
-        
-        result = {
-            "chat_id": chat_id,
-            "status": "tracking",
-            "daemon_listening": self._is_daemon_alive(),
-            "listeners": tracking_info["listeners"],
-            "explanation": explanation
-        }
-        
-        # Only include uploaded_files if there actually were files uploaded
-        if api_result.get("uploaded_files"):
-            result["uploaded_files"] = api_result["uploaded_files"]
-        
-        return result
+        task_label = task_label or f"chat-{chat_id[:8]}"
+
+        # ── Local setup: tracking + daemon + delivery ──
+        # Wrapped in try-except so chat_id is always returned even if local
+        # setup fails. The chat was already created server-side and billed —
+        # losing the chat_id would mean the agent can't recover it.
+        try:
+            tracking_info = self._track_chat(
+                chat_id=chat_id,
+                delivery_mode=delivery,
+                session_key=notify_session_key,
+                gateway_url=gateway_url if delivery == "notify_on_completion" else None,
+                task_label=task_label,
+            )
+            self._ensure_daemon_running()
+
+            # ── Delivery-mode-specific behavior ──
+            if delivery == "notify_on_completion":
+                message = self._build_tracking_message(
+                    chat_id=chat_id,
+                    task_label=task_label,
+                    action="created",
+                    notify_session_key=notify_session_key,
+                    daemon_listening=self._is_daemon_alive(),
+                    listeners=tracking_info["listeners"],
+                )
+                return {
+                    "chat_id": chat_id,
+                    "is_operating": True,
+                    "status": "tracking",
+                    "message": message,
+                }
+
+            # ── wait_for_completion: block until done ──
+            return self._wait_and_return_results(chat_id, timeout, api_result.get("uploaded_files"))
+
+        except Exception as e:
+            # Local setup failed but chat exists server-side.
+            # Return chat_id so the agent can recover via get_history().
+            return {
+                "chat_id": chat_id,
+                "is_operating": True,
+                "status": "tracking",
+                "message": (
+                    f"⚠️ Chat created (ID: {chat_id}) but local daemon setup encountered an error: {e}\n\n"
+                    f"The chat is running on CellCog and will complete normally.\n"
+                    f"To get results:\n"
+                    f'  result = client.get_history("{chat_id}")\n'
+                    f'  print(result["message"])\n\n'
+                    f"Or wait and retry:\n"
+                    f'  result = client.wait_for_completion("{chat_id}")'
+                ),
+            }
 
     def send_message(
         self,
         chat_id: str,
         message: str,
-        notify_session_key: str,
+        notify_session_key: Optional[str] = None,
         task_label: Optional[str] = None,
+        delivery: str = "wait_for_completion",
+        timeout: int = 1800,
         gateway_url: Optional[str] = None,
     ) -> dict:
         """
-        Send a message to existing chat and return immediately.
-        
-        Adds your session as a listener if not already listening.
-        
+        Send a message to existing chat.
+
+        Same delivery modes as create_chat:
+        - "wait_for_completion" (default): Blocks until done. Returns full results.
+        - "notify_on_completion": Returns immediately. Daemon delivers later.
+
         Args:
             chat_id: Chat to send to
             message: Your message (supports SHOW_FILE tags for file uploads)
-            notify_session_key: Your session key for notification
+            notify_session_key: OpenClaw session key (required for notify_on_completion)
             task_label: Label for notification (default: "continue-{chat_id[:8]}")
-            gateway_url: OpenClaw Gateway URL
-        
+            delivery: "wait_for_completion" or "notify_on_completion"
+            timeout: Max seconds to wait (wait_for_completion only, default 1800)
+            gateway_url: OpenClaw Gateway URL (notify_on_completion only)
+
         Returns:
-            {
-                "status": "tracking",
-                "uploaded_files": [...],
-                "tracking_info": {...},
-                "next_steps": str
-            }
+            Same as create_chat for the respective delivery mode.
         """
         self.config.require_configured()
-        
-        # Resolve gateway URL early — needed for pre-flight check
+
+        # ── Resolve delivery mode ──
+        if notify_session_key and delivery == "wait_for_completion":
+            delivery = "notify_on_completion"
+
+        if delivery not in ("notify_on_completion", "wait_for_completion"):
+            raise ValueError(
+                f"Invalid delivery mode: '{delivery}'. "
+                "Use 'notify_on_completion' (OpenClaw) or 'wait_for_completion' (universal)."
+            )
+
+        if delivery == "notify_on_completion" and not notify_session_key:
+            raise ValueError(
+                "notify_on_completion requires notify_session_key. "
+                "Example: notify_session_key='agent:main:main'\n"
+                "Or use delivery='wait_for_completion' (default) which works with any agent."
+            )
+
         gateway_url = gateway_url or os.environ.get(
             "OPENCLAW_GATEWAY_URL",
             "http://127.0.0.1:18789"
         )
         task_label = task_label or f"continue-{chat_id[:8]}"
-        
-        # 1. Pre-flight: verify sessions_send is available on the gateway.
-        self._require_sessions_send(gateway_url)
-        
-        # 2. Send message via API
+
+        # ── Pre-flight check (notify mode only) ──
+        if delivery == "notify_on_completion":
+            self._require_sessions_send(gateway_url)
+
+        # ── Send message via API ──
         api_result = self._chat.send_message(chat_id, message)
-        
-        # 3. Write tracking file BEFORE starting daemon
-        tracking_info = self._track_chat(
-            chat_id=chat_id,
-            session_key=notify_session_key,
-            gateway_url=gateway_url,
-            task_label=task_label
-        )
-        
-        # 4. Now ensure daemon is running (tracking file already on disk)
-        self._ensure_daemon_running()
-        
-        explanation = (
-            f"✓ Message sent to chat {chat_id}\n"
-            f"✓ Daemon is monitoring via WebSocket\n"
-            f"✓ You'll receive notification at '{notify_session_key}' when complete\n\n"
-            f"Do NOT poll - the daemon will automatically notify you with the response."
-        )
-        
-        result = {
-            "chat_id": chat_id,
-            "status": "tracking",
-            "daemon_listening": self._is_daemon_alive(),
-            "listeners": tracking_info["listeners"],
-            "explanation": explanation
-        }
-        
-        # Only include uploaded_files if there actually were files uploaded
-        if api_result.get("uploaded_files"):
-            result["uploaded_files"] = api_result["uploaded_files"]
-        
-        return result
+
+        # ── Local setup (same protection as create_chat) ──
+        try:
+            tracking_info = self._track_chat(
+                chat_id=chat_id,
+                delivery_mode=delivery,
+                session_key=notify_session_key,
+                gateway_url=gateway_url if delivery == "notify_on_completion" else None,
+                task_label=task_label,
+            )
+            self._ensure_daemon_running()
+
+            if delivery == "notify_on_completion":
+                message = self._build_tracking_message(
+                    chat_id=chat_id,
+                    task_label=task_label,
+                    action="sent",
+                    notify_session_key=notify_session_key,
+                    daemon_listening=self._is_daemon_alive(),
+                    listeners=tracking_info["listeners"],
+                )
+                return {
+                    "chat_id": chat_id,
+                    "is_operating": True,
+                    "status": "tracking",
+                    "message": message,
+                }
+
+            return self._wait_and_return_results(chat_id, timeout, api_result.get("uploaded_files"))
+
+        except Exception as e:
+            return {
+                "chat_id": chat_id,
+                "is_operating": True,
+                "status": "tracking",
+                "message": (
+                    f"⚠️ Message sent to chat {chat_id} but local daemon setup encountered an error: {e}\n\n"
+                    f"The message was delivered to CellCog and is being processed.\n"
+                    f"To get results:\n"
+                    f'  result = client.get_history("{chat_id}")\n'
+                    f'  print(result["message"])\n\n'
+                    f"Or wait and retry:\n"
+                    f'  result = client.wait_for_completion("{chat_id}")'
+                ),
+            }
 
     def get_history(
         self,
@@ -417,61 +498,70 @@ class CellCogClient:
         download_files: bool = True
     ) -> dict:
         """
-        Get full chat history (ignores seen indices).
-        
-        Use for manual inspection or memory recovery.
-        Does NOT update seen indices.
-        
+        Get full chat history. Returns same unified shape as all other methods.
+
+        Use for manual inspection, memory recovery, or when the original
+        delivery was missed/truncated.
+
         Args:
             chat_id: Chat to retrieve
             download_files: Whether to download files (default True)
-        
+
         Returns:
-            {
-                "chat_id": str,
-                "is_operating": bool,
-                "formatted_output": str,    # Full formatted messages
-                "message_count": int,
-                "downloaded_files": [...],
-                "status_message": str       # Operating status info
-            }
+            {"chat_id", "is_operating", "status", "message"}
+            message contains ALL messages (full history, not just unseen).
         """
         self.config.require_configured()
-        
-        # Get status
+
         status = self.get_status(chat_id)
-        
-        # Get history from API
         history = self._chat._request("GET", f"/cellcog/chat/{chat_id}/history")
-        
-        # Process full history (ignores seen indices)
+
         result = self._message_processor.process_full_history(
             chat_id=chat_id,
             history=history,
             is_operating=status["is_operating"],
-            download_files=download_files
+            download_files=download_files,
         )
-        
-        # Build status message
+
+        # Fetch credits
+        credits_info = None
+        try:
+            credits_info = self._chat._request("GET", f"/cellcog/chat/{chat_id}/credits")
+        except Exception:
+            pass
+
         if status["is_operating"]:
-            status_message = (
-                f"⏳ Chat is still operating. "
-                f"CellCog is working on your request. "
-                f"The history above shows progress so far."
+            # Chat still running — show partial history
+            message = self._build_operating_history_message(
+                chat_id=chat_id,
+                formatted_output=result.formatted_output,
+                delivered_count=result.delivered_count,
             )
-        else:
-            status_message = (
-                f"✅ Chat completed. "
-                f"All messages and files are shown above."
-            )
-        
+            return {
+                "chat_id": chat_id,
+                "is_operating": True,
+                "status": "operating",
+                "message": message,
+            }
+
+        # Chat completed — use same builder as wait_for_completion
+        chat_credits = credits_info.get("total_credits") if credits_info else None
+        wallet_balance = credits_info.get("effective_balance") if credits_info else None
+
+        message = self._build_completion_message(
+            chat_id=chat_id,
+            formatted_output=result.formatted_output,
+            delivered_count=result.delivered_count,
+            downloaded_files=result.downloaded_files,
+            chat_credits=chat_credits,
+            wallet_balance=wallet_balance,
+        )
+
         return {
             "chat_id": chat_id,
-            "is_operating": status["is_operating"],
-            "formatted_output": result.formatted_output,
-            "message_count": result.delivered_count,
-            "downloaded_files": result.downloaded_files,
-            "status_message": status_message
+            "is_operating": False,
+            "status": "completed",
+            "message": message,
         }
 
     def get_status(self, chat_id: str) -> dict:
@@ -558,111 +648,367 @@ class CellCogClient:
 
     def wait_for_completion(self, chat_id: str, timeout: int = 1800) -> dict:
         """
-        Block until a CellCog chat finishes operating or timeout is reached.
+        Block until a CellCog chat finishes, then return full results.
 
-        Composes with create_chat() and send_message() to enable synchronous
-        workflow patterns. The daemon continues to handle result delivery to
-        your session — this method simply blocks your thread until that
-        delivery is complete.
+        Returns the SAME content that notify_on_completion would deliver
+        via sessions_send — formatted output, downloaded files, credits info.
 
-        If timeout is reached, the chat continues processing and the daemon
-        will deliver results to your session automatically. You can call
-        wait_for_completion() again to resume waiting.
+        Use after create_chat/send_message, or to resume waiting after timeout.
 
         Args:
             chat_id: Chat to wait on
-            timeout: Maximum seconds to wait (default: 1800 = 30 min).
-                     Use 1800 for simple jobs, 3600 for complex jobs.
+            timeout: Max seconds to wait (default 1800). Use 3600 for complex jobs.
 
         Returns:
-            {
-                "chat_id": str,
-                "is_operating": bool,       # False = done, True = still working
-                "status": str,              # "completed" | "waiting"
-                "status_message": str       # Human-readable status
-            }
+            On completion:
+                {"chat_id", "is_operating": False, "status": "completed",
+                 "formatted_output", "message_count", "downloaded_files",
+                 "credits_used", "wallet_balance", "status_message"}
 
-        Example:
-            # Create chat (fire-and-forget as usual)
+            On timeout:
+                {"chat_id", "is_operating": True, "status": "timeout",
+                 "progress": [...], "status_message" (with retry guidance)}
+
+        Examples:
+            # Universal pattern (recommended)
             result = client.create_chat(
-                prompt="Research quantum computing advances",
-                notify_session_key="agent:main:main",
-                task_label="quantum-research"
+                prompt="Research quantum computing",
+                task_label="research",
             )
+            # result already contains full results (create_chat blocks)
 
-            # Block until done (daemon delivers results to your session)
-            completion = client.wait_for_completion(
-                result["chat_id"], timeout=1800
-            )
+            # Resume after timeout
+            result = client.wait_for_completion("chat_id", timeout=1800)
 
-            if not completion["is_operating"]:
-                # Done — results already delivered to your session
-                proceed_with_next_step()
+            # Compose with notify mode
+            r = client.create_chat(prompt="...", notify_session_key="agent:main:main", ...)
+            completion = client.wait_for_completion(r["chat_id"])
+        """
+        return self._wait_and_return_results(chat_id, timeout)
 
-        Workflow Example:
-            # Step 1
-            r1 = client.create_chat(prompt="Research X", ...)
-            client.wait_for_completion(r1["chat_id"], timeout=1800)
+    def _wait_and_return_results(
+        self,
+        chat_id: str,
+        timeout: int = 1800,
+        uploaded_files: Optional[list] = None,
+    ) -> dict:
+        """
+        Core wait loop: poll until completion, then fetch and return full results.
 
-            # Step 2 (uses results from step 1 via chat context)
-            r2 = client.send_message(chat_id=r1["chat_id"],
-                message="Now create a PDF summary", ...)
-            client.wait_for_completion(r1["chat_id"], timeout=1800)
+        Used by create_chat(delivery="wait_for_completion"), send_message(...),
+        and the standalone wait_for_completion() method.
+
+        Detection strategy:
+        1. Primary: daemon removes tracking file on CHAT_COMPLETED (fast, ~1s)
+        2. Fallback: poll CellCog API every 30s (handles daemon not running)
+
+        On completion: fetches history, downloads files, marks chat seen.
+        On timeout: reads interim updates from daemon, returns progress.
         """
         self.config.require_configured()
 
         tracking_file = self._state.get_tracked_file_path(chat_id)
         start_time = time.time()
+        last_api_check = 0
+        api_poll_interval = 30  # seconds
 
-        completed_message = (
-            "✅ Chat completed. All processing is finished and any "
-            "generated files have already been created. "
-            "You will receive the full response in your session "
-            "within the next few seconds."
-        )
-
-        # If tracking file doesn't already exist, the chat may have
-        # completed before we started waiting.  Do one status check.
+        # If tracking file doesn't exist, check if already completed
         if not tracking_file.exists():
             try:
                 status = self.get_status(chat_id)
                 if not status["is_operating"]:
-                    return {
-                        "chat_id": chat_id,
-                        "is_operating": False,
-                        "status": "completed",
-                        "status_message": completed_message,
-                    }
+                    return self._fetch_and_format_results(chat_id, uploaded_files)
             except Exception:
-                pass  # Proceed to wait loop; may still resolve
+                pass
 
-        # Simple wait loop — check every 2 seconds if the daemon has
-        # finished processing (it removes the tracking file after
-        # delivering results to all listeners).
+        # ── Poll loop ──
         while time.time() - start_time < timeout:
+            # Primary: daemon removed tracking file → completion
             if not tracking_file.exists():
-                return {
-                    "chat_id": chat_id,
-                    "is_operating": False,
-                    "status": "completed",
-                    "status_message": completed_message,
-                }
+                return self._fetch_and_format_results(chat_id, uploaded_files)
+
+            # Fallback: periodic API check (handles daemon crash/not started)
+            now = time.time()
+            if now - last_api_check >= api_poll_interval:
+                last_api_check = now
+                try:
+                    status = self.get_status(chat_id)
+                    if not status["is_operating"]:
+                        return self._fetch_and_format_results(chat_id, uploaded_files)
+                except Exception:
+                    pass
 
             remaining = timeout - (time.time() - start_time)
             time.sleep(min(2, max(0, remaining)))
 
-        # Timeout reached — chat is still operating
+        # ── Timeout: return progress ──
+        return self._build_timeout_result(chat_id, timeout)
+
+    def _fetch_and_format_results(
+        self,
+        chat_id: str,
+        uploaded_files: Optional[list] = None,
+    ) -> dict:
+        """
+        Fetch full history, process messages, download files, and return results.
+
+        Returns a dict with a 'message' field containing the EXACT same
+        structured string that notify_on_completion would deliver via
+        sessions_send. Agents just need to read result["message"].
+        """
+        try:
+            # Fetch history from CellCog API
+            history = self._chat._request("GET", f"/cellcog/chat/{chat_id}/history")
+
+            # Process full history (downloads files, formats messages)
+            result = self._message_processor.process_full_history(
+                chat_id=chat_id,
+                history=history,
+                is_operating=False,
+                download_files=True,
+            )
+
+            # Fetch credits
+            credits_info = None
+            try:
+                credits_info = self._chat._request("GET", f"/cellcog/chat/{chat_id}/credits")
+            except Exception:
+                pass
+
+            # Mark chat as seen
+            try:
+                self._chat._request("PATCH", f"/cellcog/chat/{chat_id}/seen")
+            except Exception:
+                pass
+
+            # Remove tracking file (if daemon hasn't already)
+            self._state.remove_tracked(chat_id)
+
+            # Build the SAME structured message that notify mode delivers
+            chat_credits = credits_info.get("total_credits") if credits_info else None
+            wallet_balance = credits_info.get("effective_balance") if credits_info else None
+
+            message = self._build_completion_message(
+                chat_id=chat_id,
+                formatted_output=result.formatted_output,
+                delivered_count=result.delivered_count,
+                downloaded_files=result.downloaded_files,
+                chat_credits=chat_credits,
+                wallet_balance=wallet_balance,
+            )
+
+            return {
+                "chat_id": chat_id,
+                "is_operating": False,
+                "status": "completed",
+                "message": message,
+            }
+
+        except Exception as e:
+            return {
+                "chat_id": chat_id,
+                "is_operating": False,
+                "status": "completed",
+                "message": (
+                    f"✅ CellCog chat completed but result processing failed: {e}\n\n"
+                    f"Use client.get_history('{chat_id}') to retrieve results manually."
+                ),
+            }
+
+    def _build_completion_message(
+        self,
+        chat_id: str,
+        formatted_output: str,
+        delivered_count: int,
+        downloaded_files: list,
+        chat_credits: int | None = None,
+        wallet_balance: int | None = None,
+    ) -> str:
+        """
+        Build the structured completion message — same format as daemon's
+        _build_notification() so agents get identical output regardless
+        of delivery mode.
+        """
+        parts = []
+
+        parts.append(f'✅ CellCog has completed chat "{chat_id}"')
+        parts.append("")
+        parts.append(
+            "CellCog stops operating on a chat for one of three reasons:\n"
+            "  1. Task completed — the work you requested is done\n"
+            "  2. Clarifying questions — CellCog needs more information to proceed\n"
+            "  3. Roadblock — something prevented completion (e.g., insufficient credits)\n"
+            "\n"
+            "Read the response below to determine which case applies.\n"
+            "If CellCog needs input, send a follow-up message to continue.\n"
+            "If the task is complete, no action needed."
+        )
+
+        # ── Response ──
+        parts.append("")
+        parts.append("── Response ──────────────────────────────────")
+        parts.append("")
+        parts.append(formatted_output)
+
+        # ── Chat Details ──
+        parts.append("── Chat Details ──────────────────────────────")
+        parts.append("")
+        parts.append(f"Chat ID: {chat_id}")
+        if chat_credits is not None:
+            parts.append(f"Credits used: {abs(chat_credits)} credits")
+        parts.append(f"Messages delivered: {delivered_count}")
+        if downloaded_files:
+            files_list = "\n".join(f"  - {f}" for f in downloaded_files)
+            parts.append(f"Files downloaded:\n{files_list}")
+
+        # ── Account ──
+        if wallet_balance is not None:
+            parts.append("")
+            parts.append("── Account ───────────────────────────────────")
+            parts.append("")
+            parts.append(f"Wallet balance: {wallet_balance:,} credits")
+
+        # ── Next Steps ──
+        parts.append("")
+        parts.append("── Next Steps ────────────────────────────────")
+        parts.append("")
+        parts.append(
+            f'To continue: client.send_message(chat_id="{chat_id}", message="...")'
+        )
+        parts.append(
+            f'To give feedback: client.create_ticket(type="feedback", title="...", chat_id="{chat_id}")'
+        )
+
+        return "\n".join(parts)
+
+    def _build_tracking_message(
+        self,
+        chat_id: str,
+        task_label: str,
+        action: str,
+        notify_session_key: str,
+        daemon_listening: bool,
+        listeners: int,
+    ) -> str:
+        """Build message for notify_on_completion mode (tracking started)."""
+        action_text = "created" if action == "created" else f"Message sent to chat"
+        header = (
+            f'✅ Chat "{task_label}" {action_text} (ID: {chat_id})'
+            if action == "created"
+            else f'✅ Message sent to chat "{chat_id}"'
+        )
+
+        parts = [header]
+        parts.append("")
+        parts.append(
+            f"Your response will be delivered to your OpenClaw session "
+            f"({notify_session_key}) when CellCog finishes processing."
+        )
+
+        parts.append("")
+        parts.append("── Tracking Status ───────────────────────────")
+        parts.append("")
+        parts.append(f"Daemon: {'listening via WebSocket' if daemon_listening else 'starting...'}")
+        parts.append(f"Listeners: {listeners} session(s) registered")
+        parts.append(f"Delivery: notify_on_completion → {notify_session_key}")
+
+        parts.append("")
+        parts.append(
+            "You can continue with other work — do not poll.\n"
+            "CellCog will deliver the full response with any generated files automatically."
+        )
+
+        parts.append("")
+        parts.append("── Manual Check ──────────────────────────────")
+        parts.append("")
+        parts.append(f'Check progress: client.get_status("{chat_id}")')
+        parts.append(f'Get full history: client.get_history("{chat_id}")')
+
+        return "\n".join(parts)
+
+    def _build_operating_history_message(
+        self,
+        chat_id: str,
+        formatted_output: str,
+        delivered_count: int,
+    ) -> str:
+        """Build message for get_history() on a chat that's still operating."""
+        parts = []
+
+        parts.append(f'⏳ CellCog is still working on chat "{chat_id}"')
+        parts.append("")
+        parts.append(
+            "The history below shows all messages so far. "
+            "CellCog has not finished processing."
+        )
+
+        parts.append("")
+        parts.append("── History So Far ────────────────────────────")
+        parts.append("")
+        parts.append(formatted_output)
+
+        parts.append("── Chat Details ──────────────────────────────")
+        parts.append("")
+        parts.append(f"Chat ID: {chat_id}")
+        parts.append(f"Messages so far: {delivered_count}")
+
+        parts.append("")
+        parts.append("── Next Steps ────────────────────────────────")
+        parts.append("")
+        parts.append(f'To wait for completion: client.wait_for_completion("{chat_id}")')
+        parts.append(f'To send follow-up: client.send_message(chat_id="{chat_id}", message="...")')
+
+        return "\n".join(parts)
+
+    def _build_timeout_result(self, chat_id: str, timeout: int) -> dict:
+        """Build timeout response with progress from daemon's interim updates."""
+        progress = []
+
+        # Read interim updates file written by daemon
+        try:
+            updates_file = Path("~/.cellcog/chats").expanduser() / chat_id / ".interim_updates.json"
+            if updates_file.exists():
+                raw = json.loads(updates_file.read_text())
+                now = time.time()
+                # Take last 10, newest first
+                for update in reversed(raw[-10:]):
+                    elapsed = now - update["timestamp"]
+                    if elapsed < 60:
+                        time_str = "just now"
+                    elif elapsed < 3600:
+                        time_str = f"{int(elapsed / 60)}m ago"
+                    else:
+                        time_str = f"{int(elapsed / 3600)}h ago"
+                    progress.append({"text": update["text"], "timestamp": time_str})
+        except Exception:
+            pass
+
+        # Build guidance message
+        lines = [f"Timeout reached ({timeout}s). CellCog is still working on this task."]
+
+        if progress:
+            lines.append("")
+            lines.append("Recent progress (newest first):")
+            for p in progress:
+                lines.append(f"  • [{p['timestamp']}] {p['text']}")
+
+        lines.extend([
+            "",
+            "If the progress above looks like the task is heading in the right direction,",
+            "you can continue waiting:",
+            f"  client.wait_for_completion(\"{chat_id}\", timeout=1800)",
+            "",
+            "If the task appears stuck (no recent activity or repeated updates),",
+            "consider creating a new chat with a refined prompt.",
+            "",
+            f"Chat ID: {chat_id}",
+        ])
+
         return {
             "chat_id": chat_id,
             "is_operating": True,
-            "status": "waiting",
-            "status_message": (
-                f"Timeout reached ({timeout}s). CellCog is still working.\n"
-                f"The daemon will deliver results to your session "
-                f"automatically.\n"
-                f"To wait again: "
-                f"client.wait_for_completion('{chat_id}')"
-            ),
+            "status": "timeout",
+            "message": "\n".join(lines),
         }
 
     # ==================== Tickets ====================
@@ -1196,20 +1542,28 @@ class CellCogClient:
         If a version mismatch is detected (e.g., after pip install),
         the old daemon is killed and a fresh one is started.
         
+        Uses a guard flag to prevent re-entrant calls (e.g., when
+        _is_daemon_alive triggers _kill_daemon during concurrent operations).
+        
         Returns:
             True if daemon is running (or was started)
         """
-        if self._is_daemon_alive():
-            # Check if running daemon matches current SDK version
-            if self._is_daemon_version_stale():
-                from . import __version__
-                print(f"Daemon version mismatch detected, restarting with SDK v{__version__}...", file=sys.stderr)
-                self._kill_daemon_if_running()
-                return self._start_daemon()
-            return True
+        if self._daemon_check_in_progress:
+            return False  # Prevent recursion
         
-        # Start daemon
-        return self._start_daemon()
+        self._daemon_check_in_progress = True
+        try:
+            if self._is_daemon_alive():
+                if self._is_daemon_version_stale():
+                    from . import __version__
+                    print(f"Daemon version mismatch detected, restarting with SDK v{__version__}...", file=sys.stderr)
+                    self._kill_daemon_if_running()
+                    return self._start_daemon()
+                return True
+            
+            return self._start_daemon()
+        finally:
+            self._daemon_check_in_progress = False
     
     def _is_daemon_version_stale(self) -> bool:
         """
@@ -1327,45 +1681,58 @@ class CellCogClient:
     def _track_chat(
         self,
         chat_id: str,
-        session_key: str,
-        gateway_url: str,
-        task_label: str
+        delivery_mode: str = "notify_on_completion",
+        session_key: Optional[str] = None,
+        gateway_url: Optional[str] = None,
+        task_label: str = "",
     ) -> dict:
         """
         Create or update tracking file for daemon.
         
-        Returns tracking info for feedback.
+        Args:
+            chat_id: CellCog chat ID
+            delivery_mode: "notify_on_completion" or "wait_for_completion"
+            session_key: OpenClaw session key (required for notify mode)
+            gateway_url: OpenClaw Gateway URL (required for notify mode)
+            task_label: Human-readable label
+        
+        Returns:
+            Tracking info dict
         """
-        # Create listener
-        listener = Listener(
-            session_key=session_key,
-            gateway_url=gateway_url,
-            gateway_auth_source="env:OPENCLAW_GATEWAY_TOKEN",
-            task_label=task_label
-        )
+        listeners = []
+        if delivery_mode == "notify_on_completion" and session_key and gateway_url:
+            listener = Listener(
+                session_key=session_key,
+                gateway_url=gateway_url,
+                gateway_auth_source="env:OPENCLAW_GATEWAY_TOKEN",
+                task_label=task_label,
+            )
+            listeners = [listener]
         
         # Check if chat already tracked
         chat_file = self._state.get_tracked_file_path(chat_id)
         
         if chat_file.exists():
-            # Load existing and add listener
             chat = TrackedChat.from_file(chat_file)
-            added = chat.add_listener(listener)
-            if added:
-                self._state.save_tracked(chat)
-            listeners_count = len(chat.listeners)
+            if listeners:
+                for listener in listeners:
+                    chat.add_listener(listener)
+            # Update delivery mode if upgrading from wait to notify
+            if delivery_mode == "notify_on_completion":
+                chat.delivery_mode = delivery_mode
+            self._state.save_tracked(chat)
         else:
-            # Create new tracking file
             chat = TrackedChat(
                 chat_id=chat_id,
-                listeners=[listener]
+                listeners=listeners,
+                delivery_mode=delivery_mode,
             )
             self._state.save_tracked(chat)
-            listeners_count = 1
         
         return {
             "daemon_active": self._is_daemon_alive(),
-            "listeners": listeners_count,
+            "listeners": len(chat.listeners),
+            "delivery_mode": delivery_mode,
         }
 
     # ==================== Data Management ====================
