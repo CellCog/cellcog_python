@@ -12,7 +12,7 @@ wait_for_completion() simply blocks your thread until that's done.
 
 from cellcog import CellCogClient
 
-client = CellCogClient()
+client = CellCogClient(agent_provider="script")
 
 # ─── Simple blocking usage ────────────────────────────────────
 

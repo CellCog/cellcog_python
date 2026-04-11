@@ -4,6 +4,8 @@ CellCog SDK Exceptions.
 Custom exceptions for handling various error conditions when interacting with the CellCog API.
 """
 
+from __future__ import annotations
+
 
 class CellCogError(Exception):
     """Base exception for all CellCog SDK errors."""

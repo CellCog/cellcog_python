@@ -9,7 +9,7 @@ v3.0 - Fire-and-Forget Pattern:
     # Set env var: export CELLCOG_API_KEY="sk_..."
     from cellcog import CellCogClient
 
-    client = CellCogClient()
+    client = CellCogClient(agent_provider="openclaw")
     
     # Create chat - returns immediately
     result = client.create_chat(
@@ -48,7 +48,7 @@ from .exceptions import (
     SDKUpgradeRequiredError,
 )
 
-__version__ = "2.0.2"
+__version__ = "2.1.1"
 __all__ = [
     "CellCogClient",
     "CellCogError",

@@ -21,7 +21,7 @@ export CELLCOG_API_KEY="sk_..."  # Get from https://cellcog.ai/profile?tab=api-k
 ```python
 from cellcog import CellCogClient
 
-client = CellCogClient()
+client = CellCogClient(agent_provider="openclaw")
 
 result = client.create_chat(
     prompt="Research quantum computing advances in 2026",
@@ -175,7 +175,7 @@ from cellcog import (
     SDKUpgradeRequiredError,
 )
 
-client = CellCogClient()
+client = CellCogClient(agent_provider="openclaw")
 
 try:
     result = client.create_chat(...)

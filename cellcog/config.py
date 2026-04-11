@@ -72,20 +72,35 @@ class Config:
         """Get API base URL."""
         return os.environ.get("CELLCOG_API_URL") or self.API_BASE_URL
     
+    # Agent identity (set by CellCogClient after detection)
+    _agent_name: str | None = None
+    _agent_version: str | None = None
+
+    def set_agent_identity(self, agent_provider: str, agent_version: str | None) -> None:
+        """Set agent provider identity for inclusion in request headers."""
+        self._agent_name = agent_provider
+        self._agent_version = agent_version
+
     def get_request_headers(self) -> dict:
         """
         Get standard headers for all CellCog API requests.
         
-        Includes API key and SDK version for backend validation.
+        Includes API key, SDK version, and agent identity for backend
+        observability and version enforcement.
         
         Returns:
-            Dictionary with X-API-Key and X-CellCog-Python-SDK-Version
+            Dictionary with authentication and identity headers.
         """
         from . import __version__
-        return {
+        headers = {
             "X-API-Key": self.api_key,
-            "X-CellCog-Python-SDK-Version": __version__
+            "X-CellCog-Python-SDK-Version": __version__,
         }
+        if self._agent_name:
+            headers["X-CellCog-Agent-Provider"] = self._agent_name
+        if self._agent_version:
+            headers["X-CellCog-Agent-Version"] = self._agent_version
+        return headers
 
     @property
     def is_configured(self) -> bool:

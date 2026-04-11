@@ -12,7 +12,7 @@ Timeout guidance:
 
 from cellcog import CellCogClient
 
-client = CellCogClient()
+client = CellCogClient(agent_provider="openclaw")
 
 # ─── Multi-step research → report workflow ────────────────────
 

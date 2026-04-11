@@ -9,7 +9,7 @@ from cellcog import CellCogClient
 
 
 def main():
-    client = CellCogClient()
+    client = CellCogClient(agent_provider="script")
 
     # Example 1: Send a local file for analysis
     print("Example 1: Analyzing a local file")

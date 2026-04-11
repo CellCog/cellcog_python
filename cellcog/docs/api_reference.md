@@ -4,7 +4,7 @@
 
 ```python
 from cellcog import CellCogClient
-client = CellCogClient(config_path=None)
+client = CellCogClient(agent_provider="openclaw")
 ```
 
 ---

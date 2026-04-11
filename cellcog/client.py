@@ -7,6 +7,8 @@ Your sub-agent for quality work. When quality or complexity is involved,
 CellCog should be your first thought.
 """
 
+from __future__ import annotations
+
 import json
 import os
 import signal
@@ -61,7 +63,7 @@ class CellCogClient:
     Usage (Fire-and-Forget):
         from cellcog import CellCogClient
 
-        client = CellCogClient()
+        client = CellCogClient(agent_provider="openclaw")
 
         # Fire-and-forget: create chat and continue working
         result = client.create_chat(
@@ -84,14 +86,53 @@ class CellCogClient:
         # Daemon delivers results to your session; proceed with workflow
     """
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(
+        self,
+        agent_provider: str,
+        agent_version: Optional[str] = None,
+        config_path: Optional[str] = None,
+    ):
         """
         Initialize CellCog client.
 
         Args:
+            agent_provider: Required. Identifies which agent framework is calling CellCog.
+                This is the framework/provider name, not your individual agent's name.
+                Examples: "openclaw", "claude-code", "cursor", "hermes",
+                "perplexity", "aider", "script", "my-custom-framework".
+                Must be lowercase alphanumeric + hyphens, 1-50 characters.
+            agent_version: Optional. Version of the agent framework. If not provided,
+                SDK attempts best-effort auto-detection for known frameworks.
+                Stored as None if undetectable.
             config_path: Path to config file. Defaults to ~/.openclaw/cellcog.json
         """
+        if not agent_provider or not isinstance(agent_provider, str):
+            raise ValueError(
+                "agent_provider is required. Identifies which agent framework is calling CellCog.\n"
+                "Examples: 'openclaw', 'claude-code', 'cursor', 'script', 'my-custom-framework'"
+            )
+
+        import re
+
+        normalized_provider = agent_provider.lower().strip().replace("_", "-")
+        if not re.match(r"^[a-z0-9][a-z0-9\-]{0,49}$", normalized_provider):
+            raise ValueError(
+                f"Invalid agent_provider '{agent_provider}'. Use lowercase letters, numbers, and hyphens. "
+                "1-50 characters. Examples: 'openclaw', 'claude-code', 'my-framework'"
+            )
+
         self.config = Config(config_path)
+
+        # Agent identity: use provided version or auto-detect
+        if agent_version is not None:
+            resolved_version = agent_version.strip() or None
+        else:
+            from .version_detection import auto_detect_version
+
+            resolved_version = auto_detect_version(normalized_provider)
+
+        self.config.set_agent_identity(normalized_provider, resolved_version)
+
         self._auth = AuthManager(self.config)
         self._files = FileProcessor(self.config)
         self._chat = ChatManager(self.config, self._files)
@@ -265,10 +306,11 @@ class CellCogClient:
             cowork_working_directory: Working directory for co-work commands
 
         Returns:
-            notify_on_completion: {"chat_id", "status", "explanation", ...}
-            wait_for_completion: {"chat_id", "is_operating", "formatted_output",
-                "downloaded_files", "credits_used", ...} on completion, or
-                {"chat_id", "is_operating", "status": "timeout", "progress", ...}
+            All modes return: {"chat_id": str, "is_operating": bool, "status": str, "message": str}
+
+            The "message" field contains the full response, file paths, credits info,
+            and next steps — formatted as a structured string. Files referenced via
+            SHOW_FILE tags are auto-downloaded to ~/.cellcog/chats/{chat_id}/.
 
         Examples:
             # Universal (works with any agent)
@@ -544,7 +586,17 @@ class CellCogClient:
                 "message": message,
             }
 
-        # Chat completed — use same builder as wait_for_completion
+        # Chat completed — agent is consuming results
+
+        # Mark seen server-side (prevents unseen email reminder from firing)
+        try:
+            self._chat._request("PATCH", f"/cellcog/chat/{chat_id}/seen")
+        except Exception:
+            pass
+
+        # Remove tracked chat file (daemon doesn't need to monitor anymore)
+        self._state.remove_tracked(chat_id)
+
         chat_credits = credits_info.get("total_credits") if credits_info else None
         wallet_balance = credits_info.get("effective_balance") if credits_info else None
 
@@ -660,14 +712,12 @@ class CellCogClient:
             timeout: Max seconds to wait (default 1800). Use 3600 for complex jobs.
 
         Returns:
-            On completion:
-                {"chat_id", "is_operating": False, "status": "completed",
-                 "formatted_output", "message_count", "downloaded_files",
-                 "credits_used", "wallet_balance", "status_message"}
+            {"chat_id": str, "is_operating": bool, "status": str, "message": str}
 
-            On timeout:
-                {"chat_id", "is_operating": True, "status": "timeout",
-                 "progress": [...], "status_message" (with retry guidance)}
+            On completion: status="completed", message contains full response with
+            file paths, credits used, and next steps.
+            On timeout: status="timeout", message contains progress updates and
+            retry guidance.
 
         Examples:
             # Universal pattern (recommended)

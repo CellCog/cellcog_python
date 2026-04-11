@@ -9,7 +9,7 @@ from cellcog import CellCogClient, PaymentRequiredError, ConfigurationError
 
 
 def main():
-    client = CellCogClient()
+    client = CellCogClient(agent_provider="script")
 
     # Check if configured
     status = client.get_account_status()
