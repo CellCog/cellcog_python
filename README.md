@@ -157,7 +157,7 @@ Generated files auto-download to `~/.cellcog/chats/{chat_id}/` or to `GENERATE_F
 | **Video & Cinema** | `video-cog` `cine-cog` `insta-cog` `tube-cog` `seedance-cog` |
 | **Images & Design** | `image-cog` `brand-cog` `meme-cog` `banana-cog` `3d-cog` |
 | **Audio & Music** | `audio-cog` `music-cog` `pod-cog` |
-| **Documents & Slides** | `docs-cog` `slides-cog` `sheet-cog` `resume-cog` `legal-cog` |
+| **Documents & Slides** | `docs-cog` `slides-cog` `spreadsheets-cog` `resume-cog` `legal-cog` |
 | **Apps & Prototypes** | `dash-cog` `game-cog` `proto-cog` |
 | **Creative** | `comi-cog` `story-cog` `learn-cog` `travel-cog` |
 | **Development** | `code-cog` `cowork-cog` `project-cog` `think-cog` |
