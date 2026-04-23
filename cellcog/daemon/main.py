@@ -525,12 +525,37 @@ class CellCogDaemon:
                 f"Tracking state preserved."
             )
         elif isinstance(error, _PaymentRequired):
+            # Fetch recovery options with direct payment links
+            recovery = self._get_credit_recovery_options()
+            recovery_block = ""
+            if recovery and recovery.get("top_ups"):
+                billing_url = recovery.get("billing_url", BILLING_URL)
+                top_up_lines = ""
+                for option in recovery["top_ups"]:
+                    top_up_lines += (
+                        f"   - ${option['amount_dollars']} top-up "
+                        f"({option['credits']:,} credits): {option['url']}\n"
+                    )
+                recovery_block = (
+                    f"\n**Option 1 — Upgrade subscription (recommended, instant credits):**\n"
+                    f"Manage subscription: {billing_url}\n"
+                    f"Upgrading gives instant prorated credits right now, plus more credits\n"
+                    f"per dollar (100 cr/$1 vs 90 cr/$1 for top-ups). Best if usage has\n"
+                    f"permanently increased.\n\n"
+                    f"**Option 2 — One-time top-up (instant credits):**\n"
+                    f"{top_up_lines}"
+                    f"Top-ups are best for temporary spikes in usage. Credits are added instantly\n"
+                    f"but cost slightly more per credit than a subscription.\n"
+                )
+            else:
+                recovery_block = f"\nAdd credits: {BILLING_URL}\n"
+
             return (
                 f"❌ CellCog Daemon Error — Payment Required\n\n"
-                f"Account needs credits to continue.\n\n"
-                f"To fix:\n"
-                f"1. Add credits: https://cellcog.ai/profile?tab=billing\n"
-                f"2. client.restart_chat_tracking()\n\n"
+                f"Account needs credits to continue.\n"
+                f"{recovery_block}\n"
+                f"After adding credits:\n"
+                f"  client.restart_chat_tracking()\n\n"
                 f"Affected tasks:\n{tasks_str}\n\n"
                 f"Tracking state preserved."
             )

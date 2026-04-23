@@ -69,16 +69,29 @@ class PaymentRequiredError(CellCogError):
             if self.current_balance is not None:
                 lines.append(f"Your current balance: {self.current_balance} credits.\n")
 
+        # Two-option recovery structure matching the gold standard
+        lines.append("**Option 1 — Upgrade subscription (recommended, instant credits):**")
+        lines.append(f"Manage subscription: {self.billing_url}")
+        lines.append(
+            "Upgrading gives instant prorated credits right now, plus more credits"
+        )
+        lines.append(
+            "per dollar (100 cr/$1 vs 90 cr/$1 for top-ups). Best if usage has"
+        )
+        lines.append("permanently increased.\n")
+
         if self.top_ups:
-            lines.append("Send one of these links to your human for instant credits:")
+            lines.append("**Option 2 — One-time top-up (instant credits):**")
             for option in self.top_ups:
                 lines.append(
                     f"  • ${option['amount_dollars']} top-up "
                     f"({option['credits']} credits): {option['url']}"
                 )
-            lines.append("")
+            lines.append(
+                "Top-ups are best for temporary spikes in usage. Credits are added instantly"
+            )
+            lines.append("but cost slightly more per credit than a subscription.\n")
 
-        lines.append(f"Manage subscription: {self.billing_url}")
         lines.append(f"Account: {email}")
 
         super().__init__("\n".join(lines))
@@ -220,52 +233,82 @@ class SDKUpgradeRequiredError(CellCogError):
 
 class GatewayConfigError(CellCogError):
     """
-    Raised when the OpenClaw Gateway is missing required configuration.
+    Raised when the OpenClaw Gateway blocks the session tools CellCog's
+    notify mode needs to deliver results back to your session.
 
-    CellCog agents work as sub-agents in the OpenClaw ecosystem and need
-    sessions_send to deliver task completions back to your session. On
-    OpenClaw 2026.4+, sessions_send is blocked by default on the
-    /tools/invoke HTTP endpoint.
+    Notify mode (fire-and-forget) requires OpenClaw's sessions_send tool
+    to deliver task completions back to your agent session. On OpenClaw
+    2026.4+, sessions_send is disabled by default to enforce strict
+    per-user session isolation (a security hardening introduced after
+    CVE-2026-27004, which affected shared-agent deployments).
+
+    The error message walks the caller through two clear options:
+    enable the tool (for single-user environments), or switch to wait
+    mode (works on any gateway without config changes).
 
     Attributes:
-        fix_command: The exact command to run to fix the issue.
         gateway_url: The Gateway URL that was checked.
     """
 
     def __init__(self, gateway_url: str):
         self.gateway_url = gateway_url
-        self.fix_command = (
-            "openclaw config set gateway.tools.allow "
-            "'[\"sessions_send\", \"sessions_list\"]'"
-        )
 
         super().__init__(
-            "CellCog requires sessions_send and sessions_list to be enabled on your OpenClaw Gateway.\n"
+            "CellCog notify mode cannot deliver results on this OpenClaw gateway.\n"
             "\n"
-            "create_chat() and send_message() are blocked until this is resolved.\n"
+            "WHY YOU'RE SEEING THIS:\n"
+            "Notify mode (fire-and-forget) delivers CellCog's results back to your\n"
+            "OpenClaw session via the gateway's session-messaging tool. OpenClaw 2026.4+\n"
+            "disables that tool by default to enforce strict per-user session isolation\n"
+            "(a security hardening introduced after CVE-2026-27004, which affected\n"
+            "shared-agent deployments). Until it's re-enabled on this gateway, notify\n"
+            "mode's completion delivery cannot reach your session.\n"
             "\n"
-            "CellCog agents work as your sub-agents in the OpenClaw ecosystem.\n"
-            "Just like any sub-agent needs session tools to report results back\n"
-            "to its parent, CellCog uses sessions_send to deliver task completions,\n"
-            "files, and progress updates to your session, and sessions_list to\n"
-            "verify session availability for reliable delivery.\n"
+            "If you're running in a single-user environment, it's safe to re-enable.\n"
+            "If you're in a shared or multi-user environment, do not re-enable — use\n"
+            "wait mode instead.\n"
             "\n"
-            "On OpenClaw 2026.4+, these tools are on the default deny list for\n"
-            "the /tools/invoke HTTP endpoint. To enable them (one-time setup):\n"
+            "YOU HAVE TWO OPTIONS:\n"
             "\n"
-            f"  {self.fix_command}\n"
+            "Option 1 — Re-enable the session-messaging tool on your gateway\n"
+            "(single-user environments only):\n"
             "\n"
-            "Then restart your gateway and retry create_chat() or send_message().\n"
+            "  The OpenClaw command for this has historically looked like:\n"
+            "    openclaw config set gateway.tools.allow \\\n"
+            "      '[\"sessions_send\", \"sessions_list\"]'\n"
             "\n"
-            "Without this, CellCog cannot deliver results to your OpenClaw session.\n"
-            "You can still view results at https://cellcog.ai\n"
+            "  This command may change across OpenClaw versions. The above is shown\n"
+            "  as a starting point only — check your installed OpenClaw version's\n"
+            "  current CLI documentation for the correct command to allow the\n"
+            "  sessions_send and sessions_list tools, then restart your gateway and\n"
+            "  retry this call.\n"
             "\n"
-            "NOT USING OPENCLAW?\n"
-            "If you're using Cursor, Claude Code, or another non-OpenClaw agent,\n"
-            "use delivery='wait_for_completion' (the default) instead of\n"
-            "notify_on_completion. It works with any agent and doesn't require\n"
-            "gateway configuration:\n"
+            "Option 2 — Use wait mode instead (no gateway changes, works everywhere):\n"
             "\n"
-            "  result = client.create_chat(prompt='...', task_label='my-task')\n"
-            "  # Blocks until done, returns full results — no gateway needed"
+            "  Notify mode is an opt-in optimization for keeping your agent free during\n"
+            "  long CellCog tasks. Wait mode has identical functionality — it just\n"
+            "  blocks until the result is ready. You can get the same agent-free\n"
+            "  behavior by running the wait-mode call inside a background thread or\n"
+            "  asyncio task.\n"
+            "\n"
+            "  Sync example (drop notify_session_key):\n"
+            "    result = client.create_chat(\n"
+            "        prompt='your task',\n"
+            "        task_label='my-task',\n"
+            "        chat_mode='agent',\n"
+            "    )\n"
+            "    # Blocks until done, returns the full result.\n"
+            "\n"
+            "  Background-thread example (agent stays free):\n"
+            "    import threading\n"
+            "    def _run_cellcog():\n"
+            "        r = client.create_chat(prompt='your task', task_label='my-task')\n"
+            "        # handle r however you want — print, queue, callback, etc.\n"
+            "    threading.Thread(target=_run_cellcog, daemon=True).start()\n"
+            "\n"
+            "Option 3 — Fallback to the web:\n"
+            "  Every CellCog chat is also viewable at https://cellcog.ai regardless of\n"
+            "  gateway configuration. You can continue the conversation from the web UI.\n"
+            "\n"
+            f"(Gateway checked: {gateway_url})"
         )
