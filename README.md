@@ -153,13 +153,13 @@ Generated files auto-download to `~/.cellcog/chats/{chat_id}/` or to `GENERATE_F
 
 | Category | Skills |
 |----------|--------|
-| **Research & Analysis** | `research-cog` `fin-cog` `crypto-cog` `data-cog` `news-cog` |
-| **Video & Cinema** | `video-cog` `cine-cog` `insta-cog` `tube-cog` `seedance-cog` |
-| **Images & Design** | `image-cog` `brand-cog` `meme-cog` `banana-cog` `3d-cog` |
-| **Audio & Music** | `audio-cog` `music-cog` `pod-cog` |
-| **Documents & Slides** | `docs-cog` `slides-cog` `spreadsheets-cog` `resume-cog` `legal-cog` |
-| **Apps & Prototypes** | `dash-cog` `game-cog` `proto-cog` |
-| **Creative** | `comi-cog` `story-cog` `learn-cog` `travel-cog` |
+| **Research & Analysis** | `deep-research-cellcog` `stock-analysis-cellcog` `crypto-cog` `data-analysis-cellcog` `news-cog` |
+| **Video & Cinema** | `video-generation-cellcog` `cine-cog` `insta-cog` `tube-cog` `seedance-video-generation-cellcog` |
+| **Images & Design** | `image-generation-cellcog` `logo-brand-identity-cellcog` `meme-generator-cellcog` `nano-banana-image-cellcog` `3d-model-generation-cellcog` |
+| **Audio & Music** | `audio-generation-cellcog` `music-generation-cellcog` `podcast-generation-cellcog` |
+| **Documents & Slides** | `pdf-document-generation-cellcog` `presentation-slides-cellcog` `excel-spreadsheet-cellcog` `resume-cover-letter-cellcog` `legal-documents-cellcog` |
+| **Apps & Prototypes** | `dashboard-web-app-cellcog` `game-asset-generation-cellcog` `ui-prototype-wireframe-cellcog` |
+| **Creative** | `comic-manga-generator-cellcog` `story-cog` `learn-cog` `travel-cog` |
 | **Development** | `code-cog` `cowork-cog` `project-cog` `think-cog` |
 
 Browse all skills: https://cellcog.ai/skills

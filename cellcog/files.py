@@ -66,8 +66,10 @@ class FileProcessor:
             attrs = match.group(1)
             file_path = match.group(2).strip()
 
-            # Skip empty paths and URLs — not local files
-            if not file_path or file_path.startswith(("http://", "https://")):
+            # Skip empty paths and URLs — not local files. gs:// is a CellCog
+            # storage reference (already-uploaded file); leave it untouched so it
+            # is not mistaken for a missing local file (which would raise).
+            if not file_path or file_path.startswith(("http://", "https://", "gs://")):
                 return match.group(0)
 
             # Cross-platform local file detection:
@@ -272,17 +274,25 @@ class FileProcessor:
         """
         Generate safe download path under ~/.cellcog/chats/{chat_id}/.
 
-        Handles two blob_name formats:
+        Handles these blob_name formats:
+        - gs://bucket/{chat_id}/path/to/file.ext (canonical explicit GS URL)
         - {chat_id}//home/app/path/to/file.ext  (double slash = from CellCog's /home/app/)
         - {chat_id}/path/to/file.ext             (single slash = relative path)
 
         Args:
-            blob_name: Full blob name from CellCog
+            blob_name: Full blob name (or gs:// URL) from CellCog
             chat_id: Chat ID for organizing downloads
 
         Returns:
             Local path like ~/.cellcog/chats/{chat_id}/{path}
         """
+        # Strip a canonical gs://bucket/ prefix down to the bare blob name
+        # ({chat_id}/path...) so the existing chat_id-prefix logic applies.
+        if blob_name.startswith("gs://"):
+            # gs://bucket/{chat_id}/path → drop scheme + bucket (first 3 segments)
+            parts = blob_name.split("/", 3)
+            blob_name = parts[3] if len(parts) > 3 else parts[-1]
+
         if "/" not in blob_name:
             # Malformed - use blob_name as filename
             return str(self.default_download_dir / chat_id / blob_name)
