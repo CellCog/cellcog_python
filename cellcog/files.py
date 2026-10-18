@@ -14,6 +14,7 @@ import requests
 
 from .config import Config
 from .exceptions import FileDownloadError, FileUploadError
+from .state_paths import state_path
 
 
 class FileProcessor:
@@ -36,7 +37,7 @@ class FileProcessor:
 
     def __init__(self, config: Config):
         self.config = config
-        self.default_download_dir = Path("~/.cellcog/chats").expanduser()
+        self.default_download_dir = state_path("chats")
 
     def transform_outgoing(self, message: str) -> tuple[str, list]:
         """

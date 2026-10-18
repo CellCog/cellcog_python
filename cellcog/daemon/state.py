@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from ..state_paths import state_dir
+
 
 @dataclass
 class Listener:
@@ -134,7 +136,7 @@ class StateManager:
         Args:
             base_dir: Base directory for state files. Defaults to ~/.cellcog
         """
-        self.base_dir = base_dir or Path("~/.cellcog").expanduser()
+        self.base_dir = base_dir or state_dir()
         self.tracked_dir = self.base_dir / "tracked_chats"
         self.chats_dir = self.base_dir / "chats"
         

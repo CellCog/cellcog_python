@@ -22,11 +22,12 @@ from typing import Optional
 import requests as _requests
 
 from .auth import AuthManager
-from .chat import ChatManager
+from .chat import ChatManager, resolve_chat_mode
 from .config import Config
 from .exceptions import APIError, GatewayConfigError
 from .files import FileProcessor
 from .message_processor import MessageProcessor
+from .state_paths import state_dir, state_path
 from .daemon.state import TrackedChat, Listener, StateManager
 
 
@@ -140,7 +141,7 @@ class CellCogClient:
         self._state = StateManager()
         
         # Daemon management
-        self._daemon_pid_file = Path("~/.cellcog/daemon.pid").expanduser()
+        self._daemon_pid_file = state_path("daemon.pid")
 
         # Sessions send pre-flight check cache
         # Maps gateway_url -> (is_available: bool, checked_at: float)
@@ -279,13 +280,21 @@ class CellCogClient:
         chat_mode: str = "agent",
         enable_cowork: bool = False,
         cowork_working_directory: Optional[str] = None,
+        chat_tier: Optional[str] = None,
+        enable_browse: bool = False,
+        browser_profile_id: Optional[str] = None,
+        enable_tools: bool = False,
+        tools_selection: Optional[list] = None,
     ) -> dict:
         """
         Create a CellCog chat.
 
-        Two delivery modes:
+        Three delivery modes:
         - "wait_for_completion" (default): Blocks until done. Returns full results.
           Works with ANY agent (OpenClaw, Cursor, Claude Code, etc.).
+        - "send_only": Fire-and-forget. Returns immediately with status="accepted";
+          no daemon needed. Poll get_status()/wait_for_completion() yourself.
+          Best for orchestrating several chats in parallel.
         - "notify_on_completion": Returns immediately. Daemon delivers results
           to your OpenClaw session via sessions_send. Requires notify_session_key.
 
@@ -295,15 +304,32 @@ class CellCogClient:
                 e.g., "agent:main:main"). If provided without explicit delivery param,
                 automatically uses notify_on_completion for backward compatibility.
             task_label: Human-readable label (appears in notification)
-            delivery: "wait_for_completion" (default, universal) or
-                "notify_on_completion" (OpenClaw only, fire-and-forget)
+            delivery: "wait_for_completion" (default, universal, blocking),
+                "send_only" (fire-and-forget: returns once the chat is accepted;
+                poll with get_status/wait_for_completion), or
+                "notify_on_completion" (OpenClaw sessions_send delivery)
             timeout: Max seconds to wait (wait_for_completion mode only, default 1800)
             gateway_url: OpenClaw Gateway URL (notify_on_completion only)
             project_id: Optional CellCog project ID for document context
             agent_role_id: Optional agent role ID within the project
-            chat_mode: "agent", "agent core", "agent team", or "agent team max"
+            chat_mode: "agent", "creative", or "team". Legacy names — "agent core",
+                "agent team", "agent team max" — keep working forever.
+            chat_tier: "flash" | "core" | "max" — depth/spend within the mode.
+                None in agent mode -> SDK default: "flash" (or "max" when
+                enable_cowork=True — coding needs depth). Other modes: the
+                server applies the mode's default. "creative" has no "flash" tier.
             enable_cowork: Enable co-work on user's PC
             cowork_working_directory: Working directory for co-work commands
+            enable_browse: Enable Browse — the agent drives the user's REAL Chrome
+                (requires CellCog Desktop + the Chrome extension). Auto-enables
+                co-work server-side. Discover profiles via get_browser_status().
+            browser_profile_id: Chrome profile to browse with — a profileDir from
+                get_browser_status()["available_profiles"]. None -> "Default".
+            enable_tools: Enable the user's connected SaaS tools (Gmail, Notion, ...)
+                for this chat. Discover toolkits via list_toolkits().
+            tools_selection: Restrict the chat to these toolkit slugs (e.g.
+                ["gmail", "notion"]). None -> ALL connected tools. no_auth built-in
+                toolkits work regardless of this selection.
 
         Returns:
             All modes return: {"chat_id": str, "is_operating": bool, "status": str, "message": str}
@@ -343,10 +369,11 @@ class CellCogClient:
         if notify_session_key and delivery == "wait_for_completion":
             delivery = "notify_on_completion"
 
-        if delivery not in ("notify_on_completion", "wait_for_completion"):
+        if delivery not in ("notify_on_completion", "wait_for_completion", "send_only"):
             raise ValueError(
                 f"Invalid delivery mode: '{delivery}'. "
-                "Use 'notify_on_completion' (OpenClaw) or 'wait_for_completion' (universal)."
+                "Use 'wait_for_completion' (universal, blocking), 'send_only' "
+                "(fire-and-forget, poll later), or 'notify_on_completion' (OpenClaw)."
             )
 
         if delivery == "notify_on_completion" and not notify_session_key:
@@ -366,15 +393,77 @@ class CellCogClient:
         if delivery == "notify_on_completion":
             self._require_sessions_send(gateway_url)
 
+        # ── Tools selection validation (toolkit slugs only) ──
+        if tools_selection is not None:
+            if not enable_tools:
+                raise ValueError("tools_selection requires enable_tools=True")
+            if not isinstance(tools_selection, (list, tuple)) or not all(
+                isinstance(s, str) and s.strip() for s in tools_selection
+            ):
+                raise ValueError(
+                    "tools_selection must be a list of toolkit slugs (strings), e.g. "
+                    "['gmail', 'notion'] — discover slugs via client.list_toolkits()."
+                )
+
+        # ── Browse pre-flight: fail fast BEFORE creating (and billing) a chat whose
+        # browser commands could never run. Best-effort — a status-fetch error never blocks.
+        if enable_browse:
+            try:
+                _bstatus = self.get_browser_status()
+            except Exception:
+                _bstatus = None
+            if _bstatus is not None:
+                _profiles = _bstatus.get("available_profiles") or []
+                if not any(p.get("hasExtension") for p in _profiles):
+                    raise ValueError(
+                        "enable_browse=True but no Chrome profile has the CellCog extension "
+                        "(or CellCog Desktop is not connected). The user must connect Desktop "
+                        "and install the extension first — check client.get_browser_status()."
+                    )
+                if browser_profile_id and not any(
+                    p.get("profileDir") == browser_profile_id for p in _profiles
+                ):
+                    _known = ", ".join(sorted(str(p.get("profileDir")) for p in _profiles))
+                    raise ValueError(
+                        f"browser_profile_id {browser_profile_id!r} not found in the user's "
+                        f"Chrome. Known profiles: {_known}. Pick a profileDir from "
+                        "client.get_browser_status()['available_profiles']."
+                    )
+
+        # ── SDK tier default (Mode × Tier rollout, 2026-08): when no chat_tier is
+        # given in agent mode, default to the LOWEST tier — "flash" — except co-work
+        # (coding on a real machine), which needs "max". Explicit chat_tier always wins.
+        if chat_tier is None and resolve_chat_mode(chat_mode) == "human_in_the_loop":
+            chat_tier = "max" if enable_cowork else "flash"
+
         # ── Create the chat via API ──
         api_result = self._chat.create(
             prompt, project_id, chat_mode,
+            chat_tier=chat_tier,
             agent_role_id=agent_role_id,
             hc_enabled=enable_cowork,
             hc_working_directory=cowork_working_directory,
+            browser_enabled=enable_browse,
+            browser_profile_id=browser_profile_id,
+            personal_tools_enabled=enable_tools,
+            personal_tools_selection=list(tools_selection) if tools_selection is not None else None,
         )
         chat_id = api_result["chat_id"]
         task_label = task_label or f"chat-{chat_id[:8]}"
+
+        # ── send_only: fire-and-forget — no tracking, no daemon, return at once ──
+        if delivery == "send_only":
+            return {
+                "chat_id": chat_id,
+                "is_operating": True,
+                "status": "accepted",
+                "message": (
+                    f"Chat {chat_id} accepted and running on CellCog (fire-and-forget).\n"
+                    f'Poll progress:    client.get_status("{chat_id}")\n'
+                    f'Block until done: client.wait_for_completion("{chat_id}", timeout=1800)\n'
+                    f'Fetch results:    client.get_history("{chat_id}")'
+                ),
+            }
 
         # ── Local setup: tracking + daemon + delivery ──
         # Wrapped in try-except so chat_id is always returned even if local
@@ -443,6 +532,10 @@ class CellCogClient:
 
         Same delivery modes as create_chat:
         - "wait_for_completion" (default): Blocks until done. Returns full results.
+        - "send_only": Fire-and-forget. Returns immediately after the message is
+          accepted; poll get_status()/wait_for_completion() yourself. Use this when
+          relaying messages to several chats — the blocking default would hang on
+          each chat's entire run.
         - "notify_on_completion": Returns immediately. Daemon delivers later.
 
         Args:
@@ -450,7 +543,8 @@ class CellCogClient:
             message: Your message (supports SHOW_FILE tags for file uploads)
             notify_session_key: OpenClaw session key (required for notify_on_completion)
             task_label: Label for notification (default: "continue-{chat_id[:8]}")
-            delivery: "wait_for_completion" or "notify_on_completion"
+            delivery: "wait_for_completion" (blocking, default), "send_only"
+                (fire-and-forget), or "notify_on_completion" (OpenClaw)
             timeout: Max seconds to wait (wait_for_completion only, default 1800)
             gateway_url: OpenClaw Gateway URL (notify_on_completion only)
 
@@ -463,10 +557,11 @@ class CellCogClient:
         if notify_session_key and delivery == "wait_for_completion":
             delivery = "notify_on_completion"
 
-        if delivery not in ("notify_on_completion", "wait_for_completion"):
+        if delivery not in ("notify_on_completion", "wait_for_completion", "send_only"):
             raise ValueError(
                 f"Invalid delivery mode: '{delivery}'. "
-                "Use 'notify_on_completion' (OpenClaw) or 'wait_for_completion' (universal)."
+                "Use 'wait_for_completion' (universal, blocking), 'send_only' "
+                "(fire-and-forget, poll later), or 'notify_on_completion' (OpenClaw)."
             )
 
         if delivery == "notify_on_completion" and not notify_session_key:
@@ -488,6 +583,19 @@ class CellCogClient:
 
         # ── Send message via API ──
         api_result = self._chat.send_message(chat_id, message)
+
+        # ── send_only: fire-and-forget — message delivered, return at once ──
+        if delivery == "send_only":
+            return {
+                "chat_id": chat_id,
+                "is_operating": True,
+                "status": "accepted",
+                "message": (
+                    f"Message delivered to chat {chat_id}; CellCog is working (fire-and-forget).\n"
+                    f'Poll progress:    client.get_status("{chat_id}")\n'
+                    f'Block until done: client.wait_for_completion("{chat_id}", timeout=1800)'
+                ),
+            }
 
         # ── Local setup (same protection as create_chat) ──
         try:
@@ -625,10 +733,79 @@ class CellCogClient:
                 "status": "processing" | "ready" | "error",
                 "name": str,
                 "is_operating": bool,
-                "error_type": str | None
+                "error_type": str | None,
+                "latest_update": str | None  # most recent agent progress one-liner
             }
         """
         return self._chat.get_status(chat_id)
+
+    # ==================== Capability Discovery (Browse & Tools) ====================
+
+    def get_browser_status(self) -> dict:
+        """
+        Browse availability on the user's machine — use this to populate a
+        profile picker before create_chat(enable_browse=True).
+
+        Returns:
+            {
+                "extension_installed": bool,   # CellCog Chrome extension present?
+                "chrome_running": bool,        # Chrome connected to Desktop?
+                "active_profile": dict | None, # sensible default profile
+                "available_profiles": [        # one per Chrome profile
+                    {"profileDir": str,        # -> pass as browser_profile_id
+                     "profileName": str,
+                     "hostedDomain": str | None,
+                     "hasExtension": bool,     # extension installed in this profile
+                     "connected": bool},       # currently connected via Desktop
+                    ...
+                ],
+                "agent_tab_count": int,
+            }
+        """
+        self.config.require_configured()
+        return self._chat._request("GET", "/cellcog/human-computer/browser/status")
+
+    def list_toolkits(self, connected_only: bool = False, search: Optional[str] = None) -> list:
+        """
+        The SaaS toolkit catalog with the user's connection state — use this to
+        populate a tool picker before create_chat(enable_tools=True).
+
+        Args:
+            connected_only: Only toolkits the user has actually connected —
+                the set that matters for tools_selection.
+            search: Optional name filter (server-side, case-insensitive).
+
+        Returns:
+            List of toolkit dicts; each has "slug" (-> pass in tools_selection),
+            "name", and "connection" (dict when connected, None otherwise).
+        """
+        self.config.require_configured()
+        from urllib.parse import quote
+
+        items, offset, limit = [], 0, 200
+        while True:
+            path = f"/cellcog/personal-tools/toolkits?limit={limit}&offset={offset}"
+            if search:
+                path += f"&search={quote(search)}"
+            resp = self._chat._request("GET", path)
+            page = resp.get("items", [])
+            items.extend(page)
+            total = resp.get("total", len(items))
+            offset += limit
+            if len(items) >= total or not page or offset > 5000:
+                break
+        if connected_only:
+            items = [t for t in items if t.get("connection")]
+        return items
+
+    def list_toolkit_tools(self, toolkit_slug: str) -> list:
+        """
+        The individual tools (action slugs) a toolkit carries — for showing users
+        what enabling a toolkit unlocks. (tools_selection itself takes TOOLKIT
+        slugs, not tool slugs.)
+        """
+        self.config.require_configured()
+        return self._chat._request("GET", f"/cellcog/personal-tools/toolkits/{toolkit_slug}/tools")
 
     # ==================== Chat Tracking Recovery ====================
 
@@ -665,7 +842,7 @@ class CellCogClient:
         self._kill_daemon_if_running()
         
         # Count tracking files to report
-        tracked_dir = Path("~/.cellcog/tracked_chats").expanduser()
+        tracked_dir = state_path("tracked_chats")
         tracked_count = sum(1 for _ in tracked_dir.glob("*.json")) if tracked_dir.exists() else 0
         
         if tracked_count == 0:
@@ -693,7 +870,7 @@ class CellCogClient:
             return {
                 "status": "failed",
                 "tracked_chats": tracked_count,
-                "message": "Failed to start daemon. Check ~/.cellcog/daemon.log"
+                "message": f"Failed to start daemon. Check {state_path('daemon.log')}"
             }
 
     # ==================== Synchronous Wait ====================
@@ -716,7 +893,8 @@ class CellCogClient:
 
             On completion: status="completed", message contains full response with
             file paths, credits used, and next steps.
-            On timeout: status="timeout", message contains progress updates and
+            On timeout: status="operating" with timed_out=True (the chat is STILL
+            running server-side); message contains progress updates and
             retry guidance.
 
         Examples:
@@ -1016,7 +1194,7 @@ class CellCogClient:
 
         # Read interim updates file written by daemon
         try:
-            updates_file = Path("~/.cellcog/chats").expanduser() / chat_id / ".interim_updates.json"
+            updates_file = state_path("chats") / chat_id / ".interim_updates.json"
             if updates_file.exists():
                 raw = json.loads(updates_file.read_text())
                 now = time.time()
@@ -1054,10 +1232,14 @@ class CellCogClient:
             f"Chat ID: {chat_id}",
         ])
 
+        # The chat is STILL RUNNING server-side. status="timeout" historically read
+        # as failure and misfired callers' retry logic (CEL-1300); status now reflects
+        # the chat's real state, and timed_out=True carries "the SDK stopped waiting".
         return {
             "chat_id": chat_id,
             "is_operating": True,
-            "status": "timeout",
+            "status": "operating",
+            "timed_out": True,
             "message": "\n".join(lines),
         }
 
@@ -1550,9 +1732,15 @@ class CellCogClient:
 
     # ==================== Daemon Management ====================
 
+    # Process-wide warn-once / give-up flags (class-level by design): a stale
+    # heartbeat or an unstartable daemon would otherwise print on EVERY SDK call
+    # in headless environments (CEL-1300 item 7).
+    _heartbeat_warned = False
+    _daemon_start_failures = 0
+
     def _has_tracked_chats(self) -> bool:
         """Check if there are any tracked chats on disk."""
-        tracked_dir = Path("~/.cellcog/tracked_chats").expanduser()
+        tracked_dir = state_path("tracked_chats")
         if not tracked_dir.exists():
             return False
         return any(tracked_dir.glob("*.json"))
@@ -1575,11 +1763,14 @@ class CellCogClient:
         except (ValueError, ProcessLookupError, PermissionError):
             pass
         finally:
-            # Clean up PID file
-            try:
-                self._daemon_pid_file.unlink(missing_ok=True)
-            except Exception:
-                pass
+            # Clean up PID + daemon health files. Leaving a stale heartbeat behind
+            # made every subsequent SDK call re-warn "heartbeat stale" and re-kill
+            # forever with the same age (CEL-1300 item 7).
+            for stale in (self._daemon_pid_file, state_path("daemon.heartbeat"), state_path("daemon.version")):
+                try:
+                    stale.unlink(missing_ok=True)
+                except Exception:
+                    pass
         
         return True
 
@@ -1611,7 +1802,18 @@ class CellCogClient:
                     return self._start_daemon()
                 return True
             
-            return self._start_daemon()
+            if CellCogClient._daemon_start_failures >= 2:
+                return False  # daemon can't start in this environment — poll-only mode
+            started = self._start_daemon()
+            if not started:
+                CellCogClient._daemon_start_failures += 1
+                if CellCogClient._daemon_start_failures == 2:
+                    print(
+                        "Note: CellCog daemon could not be started twice; continuing in "
+                        "poll-only mode (create/status/history/wait still work via HTTP).",
+                        file=sys.stderr,
+                    )
+            return started
         finally:
             self._daemon_check_in_progress = False
     
@@ -1626,7 +1828,7 @@ class CellCogClient:
         Returns:
             True if daemon should be restarted with current SDK
         """
-        version_file = Path("~/.cellcog/daemon.version").expanduser()
+        version_file = state_path("daemon.version")
         if not version_file.exists():
             return True  # No version file = old daemon pre-dating this feature
         try:
@@ -1655,17 +1857,20 @@ class CellCogClient:
         
         # Heartbeat check: daemon writes timestamp every 30s.
         # If stale (>120s), daemon is frozen (e.g., stuck after sleep).
-        heartbeat_file = Path("~/.cellcog/daemon.heartbeat").expanduser()
+        heartbeat_file = state_path("daemon.heartbeat")
         if heartbeat_file.exists():
             try:
                 heartbeat_time = float(heartbeat_file.read_text().strip())
                 age = time.time() - heartbeat_time
                 if age > 120:
-                    print(
-                        f"Warning: Daemon heartbeat stale ({age:.0f}s old). "
-                        f"Killing and restarting...",
-                        file=sys.stderr
-                    )
+                    if not CellCogClient._heartbeat_warned:
+                        print(
+                            f"Warning: Daemon heartbeat stale ({age:.0f}s old). "
+                            f"Killing and restarting... (further daemon-health "
+                            f"warnings suppressed for this process)",
+                            file=sys.stderr
+                        )
+                        CellCogClient._heartbeat_warned = True
                     self._kill_daemon_if_running()
                     return False
             except (ValueError, IOError):
@@ -1692,6 +1897,9 @@ class CellCogClient:
                 self.config.api_key,
                 self.config.api_base_url
             ]
+            # Pin the daemon to the SAME state dir the client resolved (matters when
+            # the client fell back to a tmp/override dir — both sides must agree).
+            daemon_env = {**os.environ, "CELLCOG_STATE_DIR": str(state_dir())}
             
             # Start detached process
             if sys.platform == "win32":
@@ -1701,6 +1909,7 @@ class CellCogClient:
                     creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    env=daemon_env,
                 )
             else:
                 # Unix: start new session
@@ -1709,6 +1918,7 @@ class CellCogClient:
                     start_new_session=True,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    env=daemon_env,
                 )
             
             # Wait briefly for daemon to start
@@ -1845,7 +2055,7 @@ class CellCogClient:
             tracking_file.unlink(missing_ok=True)
 
         # Remove seen indices (no longer relevant)
-        seen_dir = Path("~/.cellcog/chats/{}/{}".format(chat_id, ".seen_indices")).expanduser()
+        seen_dir = state_path("chats", chat_id, ".seen_indices")
         if seen_dir.exists():
             shutil.rmtree(seen_dir, ignore_errors=True)
 

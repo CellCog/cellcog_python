@@ -16,6 +16,7 @@ from .message_formatter import (
     format_messages_for_delivery,
     session_key_to_filename,
 )
+from .state_paths import state_path
 
 if TYPE_CHECKING:
     from .config import Config
@@ -63,7 +64,7 @@ class MessageProcessor:
         """
         self.config = config
         self.files = file_processor
-        self.chats_dir = Path("~/.cellcog/chats").expanduser()
+        self.chats_dir = state_path("chats")
     
     def process_for_delivery(
         self,

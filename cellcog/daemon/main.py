@@ -27,6 +27,7 @@ import requests
 
 from .delivery import deliver_to_all_listeners, get_gateway_auth, send_to_session
 from .state import Listener, StateManager, TrackedChat
+from ..state_paths import state_path
 
 log = logging.getLogger(__name__)
 
@@ -114,7 +115,7 @@ class CellCogDaemon:
 
         # Resilience: heartbeat file for client-side daemon health checks
         self.heartbeat_task: Optional[asyncio.Task] = None
-        self._heartbeat_file = Path("~/.cellcog/daemon.heartbeat").expanduser()
+        self._heartbeat_file = state_path("daemon.heartbeat")
         self._heartbeat_interval = 30  # seconds
 
         # Resilience: max tracking age before forced re-verify (24 hours)
@@ -1335,7 +1336,7 @@ def run_daemon():
     If no arguments provided, loads from ~/.openclaw/cellcog.json
     """
     # Setup logging
-    log_file = Path("~/.cellcog/daemon.log").expanduser()
+    log_file = state_path("daemon.log")
     log_file.parent.mkdir(parents=True, exist_ok=True)
 
     logging.basicConfig(
@@ -1378,7 +1379,7 @@ def run_daemon():
         loop.add_signal_handler(sig, signal_handler)
 
     # Write PID file
-    pid_file = Path("~/.cellcog/daemon.pid").expanduser()
+    pid_file = state_path("daemon.pid")
     pid_file.parent.mkdir(parents=True, exist_ok=True)
     pid_file.write_text(str(os.getpid()))
     log.info(f"Daemon PID: {os.getpid()}")
@@ -1386,7 +1387,7 @@ def run_daemon():
     # Write version file for client-side stale daemon detection
     from .. import __version__
 
-    version_file = Path("~/.cellcog/daemon.version").expanduser()
+    version_file = state_path("daemon.version")
     version_file.write_text(__version__)
     log.info(f"Daemon version: {__version__}")
 

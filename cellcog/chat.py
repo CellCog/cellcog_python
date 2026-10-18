@@ -19,6 +19,49 @@ from .exceptions import (
     PaymentRequiredError,
 )
 from .files import FileProcessor
+from .state_paths import state_path
+
+# ── Mode × Tier resolution (Mode × Tier redesign, 2026-08) ──────────────────
+# Friendly SDK names -> API chat_mode values. The server accepts BOTH current
+# API values and legacy ones forever (they normalize server-side to their
+# historical operating points), so unknown strings pass through untouched and
+# the server returns a clear 400 for genuinely invalid values.
+_MODE_ALIASES = {
+    # Current modes
+    "agent": "human_in_the_loop",
+    "creative": "agent_creative",
+    "agent creative": "agent_creative",
+    "team": "agent_in_the_loop",
+    "agent team": "agent_in_the_loop",
+    # Legacy names (kept working forever; server normalizes)
+    "agent core": "agent_core",
+    "agent team max": "agent_team_max",
+}
+
+_VALID_TIERS = ("flash", "core", "max")
+
+
+def resolve_chat_mode(chat_mode: Optional[str]) -> str:
+    """Map a friendly mode name to its API value; pass raw API/unknown values through."""
+    if not chat_mode:
+        return "human_in_the_loop"
+    key = str(chat_mode).strip().lower()
+    return _MODE_ALIASES.get(key, chat_mode)
+
+
+def resolve_chat_tier(chat_tier: Optional[str]) -> Optional[str]:
+    """Normalize a tier string ('flash' | 'core' | 'max'); None passes through (server
+    applies the mode's default tier). Unknown values raise immediately — a typo'd tier
+    silently falling back to a default would misroute spend."""
+    if chat_tier is None or str(chat_tier).strip() == "":
+        return None
+    tier = str(chat_tier).strip().lower()
+    if tier not in _VALID_TIERS:
+        raise ValueError(
+            f"Invalid chat_tier: {chat_tier!r}. Use 'flash', 'core', or 'max' "
+            "(or omit it for the mode's default). Note: 'creative' has no 'flash' tier."
+        )
+    return tier
 
 
 class ChatManager:
@@ -38,7 +81,7 @@ class ChatManager:
     def __init__(self, config: Config, file_processor: FileProcessor):
         self.config = config
         self.files = file_processor
-        self._chats_dir = Path("~/.cellcog/chats").expanduser()
+        self._chats_dir = state_path("chats")
 
     def create(
         self,
@@ -48,6 +91,11 @@ class ChatManager:
         agent_role_id: Optional[str] = None,
         hc_enabled: bool = False,
         hc_working_directory: Optional[str] = None,
+        chat_tier: Optional[str] = None,
+        browser_enabled: bool = False,
+        browser_profile_id: Optional[str] = None,
+        personal_tools_enabled: bool = False,
+        personal_tools_selection: Optional[list] = None,
     ) -> dict:
         """
         Create a new CellCog chat (without streaming).
@@ -55,10 +103,22 @@ class ChatManager:
         Args:
             prompt: Initial prompt (can include SHOW_FILE tags for file uploads)
             project_id: Optional CellCog project ID for document context
-            chat_mode: "agent" (fast, iterative), "agent core" (coding/co-work), "agent team" (deep reasoning), or "agent team max" (high-stakes)
+            chat_mode: "agent" (fast, iterative), "creative" (design/craft-first), or
+                "team" (deep multi-angled research). Legacy names — "agent core",
+                "agent team", "agent team max" — keep working forever (normalized
+                server-side to their historical operating points).
+            chat_tier: "flash" | "core" | "max" — depth/spend within the mode.
+                None -> the mode's default tier. "creative" has no "flash" tier.
             agent_role_id: Optional agent role ID within the project. Requires project_id.
             hc_enabled: Enable Human Computer (co-work) for this chat
             hc_working_directory: Working directory on user's machine for HC commands
+            browser_enabled: Enable Browse (the user's real Chrome). Server-side this
+                auto-enables co-work (Browse rides the Desktop connection).
+            browser_profile_id: Chrome profile dir (from the browser-status endpoint's
+                available_profiles[].profileDir). None -> "Default".
+            personal_tools_enabled: Enable the user's connected SaaS tools for this chat
+            personal_tools_selection: Toolkit slugs to restrict the chat to (e.g.
+                ["gmail", "notion"]). None -> ALL connected tools.
 
         Returns:
             {
@@ -69,17 +129,14 @@ class ChatManager:
         """
         self.config.require_configured()
 
-        mode_mapping = {
-            "agent team max": "agent_team_max",
-            "agent team": "agent_in_the_loop",
-            "agent core": "agent_core",
-            "agent": "human_in_the_loop",
-        }
-        api_chat_mode = mode_mapping.get(chat_mode, chat_mode)
+        api_chat_mode = resolve_chat_mode(chat_mode)
+        api_chat_tier = resolve_chat_tier(chat_tier)
 
         transformed, uploaded = self.files.transform_outgoing(prompt)
 
         data = {"message": transformed, "chat_mode": api_chat_mode}
+        if api_chat_tier:
+            data["chat_tier"] = api_chat_tier
         if project_id:
             data["project_id"] = project_id
         if agent_role_id:
@@ -88,6 +145,13 @@ class ChatManager:
             data["hc_enabled"] = True
         if hc_working_directory:
             data["hc_working_directory"] = hc_working_directory
+        if browser_enabled:
+            data["browser_enabled"] = True
+            data["browser_profile_id"] = browser_profile_id or "Default"
+        if personal_tools_enabled:
+            data["personal_tools_enabled"] = True
+            if personal_tools_selection is not None:
+                data["personal_tools_selection"] = [str(s).strip().lower() for s in personal_tools_selection]
 
         resp = self._request("POST", "/cellcog/chat/new", data)
 
@@ -147,6 +211,9 @@ class ChatManager:
             "name": resp["name"],
             "is_operating": resp["operating"],
             "error_type": error_type,
+            # Most recent agent progress one-liner (server: ChatMeta.latest_status_update,
+            # CEL-1300 item 6). None until the agent posts its first update of a run.
+            "latest_update": resp.get("latest_status_update"),
         }
 
     def get_history(self, chat_id: str, session_id: str) -> dict:
