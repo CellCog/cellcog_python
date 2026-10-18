@@ -72,6 +72,13 @@ returned (it read as failure and misfired retry logic).
 - `AccountDisabledError` (403) — account flagged or disabled
 - `GatewayConfigError` — sessions_send blocked (notify mode only)
 
+#### File references in prompts (<SHOW_FILE>...</SHOW_FILE>)
+
+Prompts may embed files for the agent with `<SHOW_FILE>/abs/path</SHOW_FILE>` tags. Two rules specific to SDK-launched chats:
+
+- **`hc://` paths do NOT resolve in SDK-created chats.** hc:// resolution is scoped to the chat that owns the Desktop (Co-work) session; a chat created via `create_chat()` has no such session, even when your own orchestrating chat does. The working pattern: stage the files into a workspace the new chat can reach first (e.g. FileTransfer them into your container), then reference the CONTAINER paths in the prompt — the platform uploads and renders them for the sub-agent. This also keeps prompts small (a 6-file design brief shrank 143K to 10K chars vs embedding sources inline).
+- **Prompt size cap: 50,000 characters** (`create_chat` returns 422 `string_too_long` beyond it). Embedding source files inline is the usual way to hit it — use the staging pattern above instead.
+
 ### send_message()
 
 Continue an existing conversation. Same delivery modes as `create_chat()`.
@@ -201,6 +208,56 @@ Resume daemon monitoring after error recovery.
 ```python
 result = client.restart_chat_tracking()
 ```
+
+---
+
+## AI Employees
+
+An AI employee is addressed by `employee_id` and works in numbered shifts. Every payload carries `employee_id`, `shift_number` and the shift's `chat_id`. You can instruct an employee you own, or one shared with you in your organization (`access: "team"`, acting as its owner; the owner's credits pay).
+
+### list_employees()
+
+```python
+client.list_employees() -> {"employees": [{"employee_id", "name", "title", "email", "access", "owner_name",
+                                           "status", "current_shift": {"shift_number", "chat_id", "state"}, "url"}],
+                            "count": int}
+```
+
+### get_employee()
+
+```python
+client.get_employee(employee_id: str, shifts_limit: int = 20, before_shift: int | None = None)
+```
+The list row plus `shifts` (newest first: `shift_number`, `chat_id`, `started_at`, `ended_at`, `stop_reason`, `trigger`, `is_current`), `shifts_total`, `next_before_shift` (pass it as `before_shift` for the next page).
+
+### message_employee()
+
+```python
+client.message_employee(employee_id: str, message: str)
+```
+Returns at once: `{"employee_id", "shift_number", "chat_id", "started_new_shift", "paused", "queued", "delivery", "next", "uploaded_files"}`. `delivery` is `live_shift`, `woke_shift`, `new_shift`, `held_paused` or `queued`. Files ride as SHOW_FILE tags, as in `send_message()`. **Raises:** `PaymentRequiredError` (the owner needs credits), `APIError(404)`.
+
+### get_result()
+
+```python
+client.get_result(chat_id: str | None = None, employee_id: str | None = None,
+                  shift_number: int | None = None, again: bool = False)
+```
+One-shot, never waits. Pass `chat_id` OR `employee_id` (+ optional `shift_number`, default the current shift). Not finished: `complete: False`, the progress notes since your last read, `next`. Finished: `complete: True`, `message`, `files`, `credits_used`, `finished`, `already_delivered` (the final message is delivered once; `again=True` reads it once more). The employee form adds `shift_number`, `is_current_shift`, `shift_state`, `employee_status` and `newer_shift_number` when a later shift exists.
+
+### get_employee_history()
+
+```python
+client.get_employee_history(employee_id: str, shift_number: int | None = None, limit: int = 50)
+```
+One shift's messages (latest shift by default) plus `shift_number`, `is_current_shift`, `shifts_total`, `shift`, `messages_total`, `messages_returned`.
+
+### wait_for_employee()
+
+```python
+client.wait_for_employee(employee_id: str, timeout: int = 1800, poll_interval: int = 30)
+```
+Polls `get_result(employee_id=...)` until the current shift has a finished reply. On timeout returns the last unfinished payload with `timed_out: True`.
 
 ---
 

@@ -1995,6 +1995,168 @@ class CellCogClient:
             "delivery_mode": delivery_mode,
         }
 
+    # ==================== AI Employees ====================
+    #
+    # An AI employee is addressed by its employee_id and works in numbered SHIFTS. Every
+    # payload carries employee_id + shift_number + the shift's chat_id. A message goes to the
+    # current shift; it may start a new shift, and the reply says which one. These methods
+    # call the same server functions as the web app and the CellCog MCP connector.
+
+    @staticmethod
+    def _query(params: dict) -> str:
+        from urllib.parse import urlencode
+
+        clean = {k: (str(v).lower() if isinstance(v, bool) else v) for k, v in params.items() if v is not None}
+        return f"?{urlencode(clean)}" if clean else ""
+
+    def list_employees(self) -> dict:
+        """
+        List the AI employees you can instruct (yours, or shared with you inside your organization).
+
+        Returns:
+            {"employees": [{"employee_id", "name", "title", "email",
+                            "access": "owner" | "team", "owner_name",
+                            "status": "working" | "resting" | "paused" | "archived",
+                            "current_shift": {"shift_number", "chat_id", "state"} | None,
+                            "url"}],
+             "count": int}
+
+            access "team" means you instruct the employee AS its owner (owner_name); the
+            owner's credits pay for its work.
+        """
+        self.config.require_configured()
+        return self._chat._request("GET", "/cellcog/ai-employees?view=agent")
+
+    def get_employee(
+        self,
+        employee_id: str,
+        shifts_limit: int = 20,
+        before_shift: Optional[int] = None,
+    ) -> dict:
+        """
+        One AI employee plus its shifts, newest first.
+
+        Args:
+            employee_id: From list_employees()
+            shifts_limit: Shifts per page (1-100)
+            before_shift: Next page: pass the previous page's next_before_shift
+
+        Returns:
+            The list row + {"shifts": [{"shift_number", "chat_id", "started_at", "ended_at",
+            "stop_reason", "trigger", "is_current"}], "shifts_total", "next_before_shift"}
+        """
+        self.config.require_configured()
+        q = self._query({"view": "agent", "shifts_limit": shifts_limit, "before_shift": before_shift})
+        return self._chat._request("GET", f"/cellcog/ai-employees/{employee_id}{q}")
+
+    def message_employee(self, employee_id: str, message: str) -> dict:
+        """
+        Message an AI employee. Returns at once; read the reply with get_result(employee_id=...)
+        or block with wait_for_employee().
+
+        The message goes to the employee's current shift, exactly as if typed in its chat on the
+        web. A finished shift may be woken or a new shift started; the answer says which.
+        Files: wrap local paths in SHOW_FILE tags, as in send_message().
+
+        Returns:
+            {"employee_id", "shift_number", "chat_id", "started_new_shift": bool,
+             "paused": bool, "queued": bool,
+             "delivery": "live_shift" | "woke_shift" | "new_shift" | "held_paused" | "queued",
+             "next": str, "uploaded_files": [...]}
+
+        Raises:
+            PaymentRequiredError: the owner's account needs credits
+            APIError(404): unknown employee, or not one you can instruct
+        """
+        self.config.require_configured()
+        if not (message or "").strip():
+            raise ValueError("message is required")
+        transformed, uploaded = self._chat.files.transform_outgoing(message)
+        result = self._chat._request(
+            "POST", f"/cellcog/ai-employees/{employee_id}/messages", {"message": transformed}
+        )
+        result["uploaded_files"] = uploaded
+        return result
+
+    def get_result(
+        self,
+        chat_id: Optional[str] = None,
+        employee_id: Optional[str] = None,
+        shift_number: Optional[int] = None,
+        again: bool = False,
+    ) -> dict:
+        """
+        One-shot read of a chat's or an AI employee's latest reply. Never waits.
+
+        Pass chat_id for a chat, or employee_id (+ optional shift_number; omit for the current
+        shift) for an AI employee.
+
+        Returns (same payload as the CellCog MCP connector's cellcog_get_result):
+            Not finished: {"complete": False, "updates": [...], "next": str, ...}
+                (the progress notes since your last read)
+            Finished: {"complete": True, "message", "files": [{"name", "url", ...}],
+                "credits_used", "finished", "already_delivered", ...}
+            Employee form adds: "employee_id", "shift_number", "is_current_shift",
+                "shift_state", "employee_status", and "newer_shift_number" when a later
+                shift exists.
+
+        The final message is delivered once; pass again=True to read it once more.
+        """
+        self.config.require_configured()
+        if bool(chat_id) == bool(employee_id):
+            raise ValueError("Pass exactly one of chat_id or employee_id.")
+        if chat_id:
+            if shift_number is not None:
+                raise ValueError("shift_number goes with employee_id, not chat_id.")
+            return self._chat._request("GET", f"/cellcog/chat/{chat_id}/result{self._query({'again': again or None})}")
+        q = self._query({"shift_number": shift_number, "again": again or None})
+        return self._chat._request("GET", f"/cellcog/ai-employees/{employee_id}/result{q}")
+
+    def get_employee_history(
+        self,
+        employee_id: str,
+        shift_number: Optional[int] = None,
+        limit: int = 50,
+    ) -> dict:
+        """
+        The messages of one shift (omit shift_number for the latest shift).
+
+        Returns:
+            {"chat_id", "messages": [...], "employee_id", "shift_number", "is_current_shift",
+             "shifts_total", "shift": {"started_at", "ended_at", "stop_reason", "trigger", "state"},
+             "messages_total", "messages_returned", ...}
+        """
+        self.config.require_configured()
+        q = self._query({"shift_number": shift_number, "limit": limit})
+        return self._chat._request("GET", f"/cellcog/ai-employees/{employee_id}/history{q}")
+
+    def wait_for_employee(
+        self,
+        employee_id: str,
+        timeout: int = 1800,
+        poll_interval: int = 30,
+    ) -> dict:
+        """
+        Block until the AI employee's current shift has a finished reply, then return it.
+
+        Follows the current shift, so a message that started a new shift is waited on there.
+
+        Returns:
+            get_result's finished payload. On timeout: the last unfinished payload with
+            "timed_out": True (the employee is still working; call again).
+        """
+        self.config.require_configured()
+        poll_interval = max(5, int(poll_interval))
+        deadline = time.time() + timeout
+        while True:
+            result = self.get_result(employee_id=employee_id)
+            if result.get("complete"):
+                return result
+            if time.time() + poll_interval > deadline:
+                result["timed_out"] = True
+                return result
+            time.sleep(poll_interval)
+
     # ==================== Data Management ====================
 
     def delete_chat(self, chat_id: str) -> dict:

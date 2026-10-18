@@ -139,6 +139,26 @@ result = client.create_chat(
 )
 ```
 
+## AI Employees
+
+Instruct the AI employees you own, or that a teammate shared with you, from your own agent. An employee is addressed by its `employee_id` and works in numbered shifts; every answer carries `shift_number` and the shift's `chat_id`.
+
+```python
+team = client.list_employees()              # who you can instruct, access "owner" | "team"
+emp = team["employees"][0]["employee_id"]
+
+sent = client.message_employee(emp, "Draft this week's update for the investors")
+print(sent["shift_number"], sent["started_new_shift"])   # a message may start a new shift
+
+reply = client.wait_for_employee(emp, timeout=1800)      # or poll client.get_result(employee_id=emp)
+print(reply["message"])
+
+client.get_employee(emp)                                 # the employee + its shifts, newest first
+client.get_employee_history(emp, shift_number=12)        # any shift's messages (omit for the latest)
+```
+
+`get_result(chat_id=...)` is the same one-shot read for regular chats: progress notes while the work runs, the final message once it is done.
+
 ## Browse & Tools
 
 CellCog chats can drive the user's **real Chrome** (Browse) and call their **connected
