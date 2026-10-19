@@ -144,6 +144,7 @@ result = client.create_chat(
 Instruct the AI employees you own, or that a teammate shared with you, from your own agent. An employee is addressed by its `employee_id` and works in numbered shifts; every answer carries `shift_number` and the shift's `chat_id`.
 
 ```python
+new = client.hire_employee("A marketing manager for my coffee brand; posts weekly")  # SDK 2.6.0+
 team = client.list_employees()              # who you can instruct, access "owner" | "team"
 emp = team["employees"][0]["employee_id"]
 

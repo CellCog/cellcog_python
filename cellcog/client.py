@@ -2027,6 +2027,40 @@ class CellCogClient:
         self.config.require_configured()
         return self._chat._request("GET", "/cellcog/ai-employees?view=agent")
 
+    def hire_employee(
+        self,
+        brief: str,
+        name: Optional[str] = None,
+        chat_tier: str = "core",
+    ) -> dict:
+        """
+        Hire a new AI employee in the connected account (SDK 2.6.0+).
+
+        A hire creates a standing teammate that works over days or months on the owner's
+        credits. For a one-off job, use create_chat instead. After the hire, message the
+        employee to change any of its own settings; pausing and deleting stay on the web.
+
+        Args:
+            brief: The role in plain words, as typed on the hire page
+                ("a marketing manager for my coffee brand; posts weekly; tracks Instagram").
+            name: Optional name; the employee is asked to call itself this.
+            chat_tier: "flash", "core" (default) or "max". The mode is always agent.
+
+        Returns:
+            {"employee_id", "shift_number", "chat_id", "url", "next"}. Then read its first
+            reply with get_result(employee_id=...) or wait_for_employee().
+
+        Raises:
+            PaymentRequiredError: the owner's account needs credits
+        """
+        self.config.require_configured()
+        if not (brief or "").strip():
+            raise ValueError("brief is required")
+        body = {"setup_prompt": brief, "chat_mode": "human_in_the_loop", "chat_tier": chat_tier}
+        if name:
+            body["name"] = name
+        return self._chat._request("POST", "/cellcog/ai-employees?view=agent", body)
+
     def get_employee(
         self,
         employee_id: str,

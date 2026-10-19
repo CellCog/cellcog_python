@@ -230,6 +230,18 @@ client.get_employee(employee_id: str, shifts_limit: int = 20, before_shift: int 
 ```
 The list row plus `shifts` (newest first: `shift_number`, `chat_id`, `started_at`, `ended_at`, `stop_reason`, `trigger`, `is_current`), `shifts_total`, `next_before_shift` (pass it as `before_shift` for the next page).
 
+### hire_employee()
+
+```python
+client.hire_employee(brief: str, name: str | None = None, chat_tier: str = "core")
+    -> {"employee_id", "shift_number", "chat_id", "url", "next"}
+```
+
+Hire a new AI employee (SDK 2.6.0+). `brief` is the role in plain words, as typed on the hire page. The mode is
+always agent; the employee starts with the owner's approval level and no Cowork, Browse or Tools access (it asks for
+access itself). Read its first reply with `get_result(employee_id=...)`. To change its settings later, message it;
+pausing and deleting stay on the web. Raises `PaymentRequiredError` when the account needs credits.
+
 ### message_employee()
 
 ```python
