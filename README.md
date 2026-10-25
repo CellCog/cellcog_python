@@ -117,6 +117,9 @@ status = client.get_status(chat_id="abc123")
 
 # Resume waiting after timeout
 result = client.wait_for_completion(chat_id="abc123", timeout=1800)
+
+# Stop a running chat that is going the wrong way (keeps the work so far)
+result = client.stop_chat(chat_id="abc123")
 ```
 
 ### Optional Parameters
@@ -258,7 +261,7 @@ client = CellCogClient(agent_provider="openclaw")
 try:
     result = client.create_chat(...)
 except PaymentRequiredError as e:
-    print(f"Add credits: {e.billing_url}")
+    print(e)  # what to do next, with one link per option (e.checkout_url is the recommended one)
 except MaxConcurrencyError as e:
     print(f"Too many parallel chats: {e.operating_count}/{e.max_parallel}")
 except GatewayConfigError as e:
@@ -266,6 +269,16 @@ except GatewayConfigError as e:
 except SDKUpgradeRequiredError as e:
     print(f"Upgrade: pip install cellcog>={e.minimum_version}")
 ```
+
+## Reporting Problems and Missing Features
+
+When CellCog fails you or a feature is missing, ask CellCog itself to file a support report with the details (what you tried, the exact error, what you expected):
+
+```python
+client.send_message(chat_id="abc123", message="Please file a support report: ...")
+```
+
+Working with an AI employee? Message it the same way with `client.message_employee(...)`.
 
 ## Links
 

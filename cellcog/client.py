@@ -30,6 +30,10 @@ from .message_processor import MessageProcessor
 from .state_paths import state_dir, state_path
 from .daemon.state import TrackedChat, Listener, StateManager
 
+# The web composer's Stop control and the MCP cellcog_chat_stop tool send this exact line as a message; the agent
+# finishes its current step and stops. Keep it byte-identical to the line those two send.
+STOP_TEXT = "Please stop operation and wait for further instructions."
+
 
 class CellCogClient:
     """
@@ -739,6 +743,52 @@ class CellCogClient:
         """
         return self._chat.get_status(chat_id)
 
+    def stop_chat(self, chat_id: str) -> dict:
+        """
+        Stop a running chat that is heading in the wrong direction.
+
+        Sends the same stop line as the web composer's Stop control and the MCP
+        cellcog_chat_stop tool, through the normal send-message endpoint. The agent
+        finishes its current step, stops and waits for your next message, and keeps
+        everything it made so far; nothing is deleted. A chat that is not running
+        is left alone (a message into an idle chat would start a new run).
+
+        Args:
+            chat_id: Chat to stop
+
+        Returns:
+            {"chat_id", "is_operating", "status", "stopped", "message"}
+            stopped is True when the stop line was sent, False when nothing was running.
+        """
+        self.config.require_configured()
+
+        status = self.get_status(chat_id)
+        if not status.get("is_operating"):
+            return {
+                "chat_id": chat_id,
+                "is_operating": False,
+                "status": status.get("status"),
+                "stopped": False,
+                "message": (
+                    f"Nothing is running in chat {chat_id}, so there is nothing to stop.\n"
+                    f'Get its result: client.get_history("{chat_id}")'
+                ),
+            }
+
+        self._chat.send_message(chat_id, STOP_TEXT)
+        return {
+            "chat_id": chat_id,
+            "is_operating": True,
+            "status": "stopping",
+            "stopped": True,
+            "message": (
+                f"Stop requested for chat {chat_id}. The agent finishes its current step and stops, "
+                "keeping the work done so far.\n"
+                f'Collect it:  client.wait_for_completion("{chat_id}")\n'
+                f'Redirect it: client.send_message(chat_id="{chat_id}", message="...")'
+            ),
+        }
+
     # ==================== Capability Discovery (Browse & Tools) ====================
 
     def get_browser_status(self) -> dict:
@@ -1104,7 +1154,8 @@ class CellCogClient:
             f'To continue: client.send_message(chat_id="{chat_id}", message="...")'
         )
         parts.append(
-            f'To give feedback: client.create_ticket(type="feedback", title="...", chat_id="{chat_id}")'
+            "Something missing or broken in CellCog? Ask CellCog to file a support report: "
+            f'client.send_message(chat_id="{chat_id}", message="Please file a support report: ...")'
         )
 
         return "\n".join(parts)
@@ -1242,63 +1293,6 @@ class CellCogClient:
             "timed_out": True,
             "message": "\n".join(lines),
         }
-
-    # ==================== Tickets ====================
-
-    def create_ticket(
-        self,
-        type: str,
-        title: str,
-        description: str,
-        chat_id: str | None = None,
-        tags: list[str] | None = None,
-        priority: str = "medium",
-    ) -> dict:
-        """
-        Submit feedback, bug report, support request, or feature request to CellCog.
-
-        Use after completing a task to share what went well, what didn't,
-        or what capabilities would be useful.
-
-        Args:
-            type: "support", "feedback", "feature_request", or "bug_report"
-            title: Short summary (max 200 chars)
-            description: Detailed description (max 5000 chars)
-            chat_id: Optional chat ID for context
-            tags: Optional tags for categorization (max 10)
-            priority: "low", "medium", "high", or "critical" (default: "medium")
-
-        Returns:
-            {
-                "ticket_id": str,
-                "ticket_number": int,
-                "status": "open",
-                "message": str
-            }
-
-        Example:
-            client.create_ticket(
-                type="feedback",
-                title="Image generation quality is excellent",
-                description="Generated 15 product images, all matched style accurately.",
-                chat_id="abc123",
-                tags=["image_generation", "positive"]
-            )
-        """
-        self.config.require_configured()
-
-        data = {
-            "type": type,
-            "title": title,
-            "description": description,
-            "priority": priority,
-        }
-        if chat_id:
-            data["chat_id"] = chat_id
-        if tags:
-            data["tags"] = tags
-
-        return self._chat._request("POST", "/cellcog/tickets", data)
 
     # ==================== Projects ====================
 
@@ -2272,7 +2266,7 @@ class CellCogClient:
         Get CellCog support and troubleshooting documentation.
 
         Returns markdown covering error handling, recovery patterns,
-        chat deletion, ticket submission, daemon troubleshooting,
+        chat deletion, reporting problems, daemon troubleshooting,
         data privacy, and terms of service.
 
         Returns:

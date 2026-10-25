@@ -23,7 +23,7 @@ All CellCog errors are self-documenting. When an error occurs, you receive a cle
 
 | Error | Cause | Resolution |
 |-------|-------|------------|
-| `PaymentRequiredError` (402) | Insufficient credits for the requested chat mode | Present the included `top_ups` payment links to your human |
+| `PaymentRequiredError` (402) | The account is out of credits | Show your human the error text: the server's `message` and its `options` links (`checkout_url` is the recommended one) |
 | `MaxConcurrencyError` (429) | Too many parallel chats running | Wait for a chat to finish, or add credits for more slots |
 | `AccountDisabledError` (403) | Account flagged, disabled, or email not verified | Direct human to https://cellcog.ai or contact support@cellcog.ai |
 | `ChatNotFoundError` (404) | Chat doesn't exist or was deleted | Verify the chat_id |
@@ -60,22 +60,18 @@ Everything is purged server-side within ~15 seconds — messages, files, contain
 
 ---
 
-## Submitting Tickets
+## Reporting problems and missing features
 
-Report bugs, request features, or send feedback directly to the CellCog team:
+CellCog's own agents file support reports, so there is no separate support API. When CellCog fails you or a feature you need is missing, ask the chat to file one, with the details (what you tried, the exact error, what you expected):
 
 ```python
-result = client.create_ticket(
-    type="feedback",        # "support", "feedback", "feature_request", "bug_report"
-    title="Brief description",
-    description="Details...",
-    chat_id="abc123",       # Optional: link to relevant chat
-    tags=["tag1"],          # Optional
-    priority="medium"       # "low", "medium", "high", "critical"
+client.send_message(
+    chat_id="abc123",
+    message="Please file a support report: the PDF export failed with 'font not found'; I expected a 3-page PDF.",
 )
 ```
 
-All feedback — positive, negative, or observations — helps improve CellCog.
+Working with an AI employee? Message it instead: `client.message_employee(employee_id, "Please file a support report: ...")`.
 
 ---
 

@@ -19,11 +19,30 @@ class AuthenticationError(CellCogError):
     pass
 
 
+def format_credit_options(message: str, options: list | None) -> str:
+    """The server's out-of-credits answer (402 detail `message` + `options`): its ready sentence, then one bullet per
+    option in the server's order (the recommended one first), "label: url". Shared by PaymentRequiredError and the
+    daemon's fatal 402 notice."""
+    lines = [message]
+    for option in options or []:
+        if not isinstance(option, dict) or not option.get("label"):
+            continue
+        label = option["label"]
+        lines.append(f"  • {label}: {option['url']}" if option.get("url") else f"  • {label}")
+    return "\n".join(lines)
+
+
 class PaymentRequiredError(CellCogError):
     """
     Raised when the user's account needs credits to proceed.
 
     Attributes:
+        message: The server's one-sentence answer (what to do next), or None from an older server.
+        options: The server's ordered recovery options, each {"label", "recommended", "url", "credits", "rows", ...};
+                 [] from an older server, or while Auto-Recharge is already topping the balance up.
+        case: The server's out-of-credits case id (e.g. "C2"), or None.
+        offer: The live first-month offer ({"summary", "valid_until", "links", ...}), or None.
+        checkout_url: The recommended link to open for the human, or None.
         top_ups: List of top-up options with direct Stripe Payment Link URLs.
                  Each: {"amount_dollars": int, "credits": int, "url": str}
         billing_url: URL to CellCog billing page for subscription management.
@@ -48,6 +67,11 @@ class PaymentRequiredError(CellCogError):
         current_balance: int | None = None,
         chat_mode: str | None = None,
         chat_mode_display: str | None = None,
+        message: str | None = None,
+        options: list | None = None,
+        case: str | None = None,
+        offer: dict | None = None,
+        checkout_url: str | None = None,
     ):
         self.top_ups = top_ups or []
         self.billing_url = billing_url or subscription_url
@@ -57,8 +81,18 @@ class PaymentRequiredError(CellCogError):
         self.current_balance = current_balance
         self.chat_mode = chat_mode
         self.chat_mode_display = chat_mode_display
+        self.message = message
+        self.options = options or []
+        self.case = case
+        self.offer = offer
+        self.checkout_url = checkout_url
 
-        # Build agent-friendly message with actionable links
+        # The server's own answer when it sends one (SDK at zero, Oct 2026): its sentence and its ordered options.
+        if message:
+            super().__init__(f"{format_credit_options(message, self.options)}\n\nAccount: {email}")
+            return
+
+        # Older server: build agent-friendly message with actionable links
         lines = ["Payment required. Your CellCog account needs credits to proceed.\n"]
 
         if self.min_credits_required is not None and self.chat_mode_display:
@@ -72,13 +106,7 @@ class PaymentRequiredError(CellCogError):
         # Two-option recovery structure matching the gold standard
         lines.append("**Option 1 — Upgrade subscription (recommended, instant credits):**")
         lines.append(f"Manage subscription: {self.billing_url}")
-        lines.append(
-            "Upgrading gives instant prorated credits right now, plus more credits"
-        )
-        lines.append(
-            "per dollar (100 cr/$1 vs 90 cr/$1 for top-ups). Best if usage has"
-        )
-        lines.append("permanently increased.\n")
+        lines.append("A plan gives more credits per dollar than a top-up. Best if usage has permanently increased.\n")
 
         if self.top_ups:
             lines.append("**Option 2 — One-time top-up (instant credits):**")

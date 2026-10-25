@@ -350,11 +350,27 @@ class ChatManager:
             current_balance = None
             chat_mode = None
             chat_mode_display = None
+            # The server's own answer (SDK at zero, Oct 2026): absent from older servers, which fall back to the above
+            server_message = None
+            options = []
+            case = None
+            offer = None
+            checkout_url = None
             try:
                 error_data = resp.json()
                 detail = error_data.get("detail", {})
                 if isinstance(detail, dict):
-                    payment_options = detail.get("payment_options", {})
+                    # `case` marks the enriched answer: an older server's 402 also has a `message` (its own sentence),
+                    # which keeps the fallback text below.
+                    case = detail.get("case") or None
+                    if case:
+                        if isinstance(detail.get("message"), str):
+                            server_message = detail["message"]
+                        if isinstance(detail.get("options"), list):
+                            options = detail["options"]
+                        offer = detail.get("offer") if isinstance(detail.get("offer"), dict) else None
+                        checkout_url = detail.get("checkout_url")
+                    payment_options = detail.get("payment_options") or {}
                     top_ups = payment_options.get("top_ups", [])
                     billing_url = payment_options.get("billing_url", billing_url)
                     credit_context = detail.get("credit_context", {})
@@ -363,7 +379,7 @@ class ChatManager:
                         current_balance = credit_context.get("current_balance")
                         chat_mode = credit_context.get("chat_mode")
                         chat_mode_display = credit_context.get("chat_mode_display")
-            except (ValueError, KeyError, AttributeError):
+            except (ValueError, KeyError, AttributeError, TypeError):
                 pass  # Fall back to defaults
 
             raise PaymentRequiredError(
@@ -375,6 +391,11 @@ class ChatManager:
                 current_balance=current_balance,
                 chat_mode=chat_mode,
                 chat_mode_display=chat_mode_display,
+                message=server_message,
+                options=options,
+                case=case,
+                offer=offer,
+                checkout_url=checkout_url,
             )
 
         if resp.status_code == 403:

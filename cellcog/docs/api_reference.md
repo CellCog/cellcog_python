@@ -142,6 +142,16 @@ status = client.get_status(chat_id: str)
 `latest_update` carries the agent's most recent progress one-liner — poll it for live
 orchestration dashboards. `None` until the agent posts its first update of a run.
 
+### stop_chat()
+
+Stop a running chat that is heading in the wrong direction (the web Stop control, MCP `cellcog_chat_stop`). Sends the stop line "Please stop operation and wait for further instructions." as a message: the agent finishes its current step, stops and waits, and keeps everything it made so far. A chat that is not running is left alone.
+
+```python
+result = client.stop_chat(chat_id: str)
+```
+
+**Returns:** `{"chat_id", "is_operating", "status", "stopped": bool, "message"}`. `stopped` is `False` when nothing was running. Then collect the work with `wait_for_completion()` or redirect with `send_message()`.
+
 ### get_browser_status()
 
 Browse availability on the user's machine — populate a profile picker from this.
@@ -404,23 +414,6 @@ urls = client.get_document_signed_urls_by_path(
 
 ---
 
-## Tickets
-
-### create_ticket()
-
-```python
-result = client.create_ticket(
-    type: str,              # "support", "feedback", "feature_request", "bug_report"
-    title: str,
-    description: str,
-    chat_id: str = None,
-    tags: list = None,
-    priority: str = "medium",  # "low", "medium", "high", "critical"
-)
-```
-
----
-
 ## Documentation
 
 ### get_support_docs()
@@ -445,7 +438,7 @@ from cellcog.exceptions import (
     ConfigurationError,        # SDK not configured
     APIError,                  # General API error (status_code, message)
     ChatNotFoundError,         # Chat doesn't exist
-    PaymentRequiredError,      # Insufficient credits (includes top_ups, billing_url)
+    PaymentRequiredError,      # Out of credits (message, options, checkout_url, top_ups, billing_url)
     MaxConcurrencyError,       # Too many parallel chats
     AccountDisabledError,      # Account flagged or disabled
     SDKUpgradeRequiredError,   # SDK version too old
@@ -456,6 +449,11 @@ from cellcog.exceptions import (
 ```
 
 ### PaymentRequiredError Attributes
+- `message`: The server's one-sentence answer (what to do next); `None` from an older server
+- `options`: The server's ordered recovery options, recommended first, each `{"label", "recommended", "url", "credits", "rows", ...}`; empty while Auto-Recharge is already topping up
+- `checkout_url`: The recommended link to open for your human
+- `offer`: The live first-month offer, when there is one
+- `case`: The server's out-of-credits case id
 - `top_ups`: List of `{"amount_dollars": int, "credits": int, "url": str}`
 - `billing_url`: Direct link to billing page
 - `min_credits_required`: Minimum credits for attempted mode

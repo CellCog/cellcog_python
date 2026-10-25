@@ -25,6 +25,7 @@ from typing import Optional
 import aiohttp
 import requests
 
+from ..exceptions import format_credit_options
 from .delivery import deliver_to_all_listeners, get_gateway_auth, send_to_session
 from .state import Listener, StateManager, TrackedChat
 from ..state_paths import state_path
@@ -421,7 +422,10 @@ class CellCogDaemon:
         parts.append(
             f'To continue: client.send_message(chat_id="{chat_id}", message="...")'
         )
-        parts.append(f'To give feedback: client.create_ticket(type="feedback", title="...", chat_id="{chat_id}")')
+        parts.append(
+            "Something missing or broken in CellCog? Ask CellCog to file a support report: "
+            f'client.send_message(chat_id="{chat_id}", message="Please file a support report: ...")'
+        )
 
         return "\n".join(parts)
 
@@ -526,10 +530,12 @@ class CellCogDaemon:
                 f"Tracking state preserved."
             )
         elif isinstance(error, _PaymentRequired):
-            # Fetch recovery options with direct payment links
-            recovery = self._get_credit_recovery_options()
+            # The server's own answer when the 402 carries one; else fetch recovery options with direct payment links
+            recovery = None if error.server_message else self._get_credit_recovery_options()
             recovery_block = ""
-            if recovery and recovery.get("top_ups"):
+            if error.server_message:
+                recovery_block = f"\n{format_credit_options(error.server_message, error.options)}\n"
+            elif recovery and recovery.get("top_ups"):
                 billing_url = recovery.get("billing_url", BILLING_URL)
                 top_up_lines = ""
                 for option in recovery["top_ups"]:
@@ -540,9 +546,7 @@ class CellCogDaemon:
                 recovery_block = (
                     f"\n**Option 1 — Upgrade subscription (recommended, instant credits):**\n"
                     f"Manage subscription: {billing_url}\n"
-                    f"Upgrading gives instant prorated credits right now, plus more credits\n"
-                    f"per dollar (100 cr/$1 vs 90 cr/$1 for top-ups). Best if usage has\n"
-                    f"permanently increased.\n\n"
+                    f"A plan gives more credits per dollar than a top-up. Best if usage has permanently increased.\n\n"
                     f"**Option 2 — One-time top-up (instant credits):**\n"
                     f"{top_up_lines}"
                     f"Top-ups are best for temporary spikes in usage. Credits are added instantly\n"
@@ -1049,7 +1053,7 @@ class CellCogDaemon:
             raise _AuthenticationFailed("API key invalid or revoked")
 
         if resp.status_code == 402:
-            raise _PaymentRequired()
+            raise _PaymentRequired.from_response(resp)
 
         resp.raise_for_status()
         data = resp.json()
@@ -1317,9 +1321,24 @@ class _AuthenticationFailed(_FatalDaemonError):
 
 
 class _PaymentRequired(_FatalDaemonError):
-    """Account needs credits (HTTP 402)."""
+    """Account needs credits (HTTP 402). Carries the server's own answer (`message` + ordered `options`) when the 402
+    has one (marked by `case`); older servers send neither."""
 
-    pass
+    def __init__(self, message: Optional[str] = None, options: Optional[list] = None):
+        self.server_message = message
+        self.options = options or []
+        super().__init__(message or "Account needs credits")
+
+    @classmethod
+    def from_response(cls, resp) -> "_PaymentRequired":
+        try:
+            detail = resp.json().get("detail")
+            if isinstance(detail, dict) and detail.get("case") and isinstance(detail.get("message"), str):
+                options = detail.get("options")
+                return cls(detail["message"], options if isinstance(options, list) else [])
+        except (ValueError, AttributeError, TypeError):
+            pass
+        return cls()
 
 
 # =============================================================================
