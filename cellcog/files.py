@@ -15,6 +15,7 @@ import requests
 from .config import Config
 from .exceptions import FileDownloadError, FileUploadError
 from .state_paths import state_path
+from .telemetry import host_of, report_error
 
 
 class FileProcessor:
@@ -176,6 +177,8 @@ class FileProcessor:
 
         # Fail early if any SHOW_FILE-referenced local files are missing
         if missing_files:
+            for path in missing_files:
+                report_error(self.config, "missing_file", path=path, message="SHOW_FILE path not found on this machine")
             files_list = "\n".join(f"  - {path}" for path in missing_files)
             raise FileUploadError(
                 f"Cannot upload {len(missing_files)} file(s) to CellCog — not found:\n"
@@ -348,6 +351,8 @@ class FileProcessor:
             resp.raise_for_status()
             data = resp.json()
         except requests.RequestException as e:
+            report_error(self.config, "upload_request", e, host=host_of(self.config.api_base_url), path=local_path,
+                         mime=mime_type, size=file_size)
             raise FileUploadError(f"Failed to get upload URL: {e}")
 
         # Step 2: Upload to signed URL
@@ -361,6 +366,8 @@ class FileProcessor:
                 )
                 put_resp.raise_for_status()
         except requests.RequestException as e:
+            report_error(self.config, "upload_put", e, host=host_of(data.get("upload_url")), path=local_path,
+                         mime=mime_type, size=file_size)
             raise FileUploadError(f"Failed to upload file: {e}")
 
         # Step 3: Confirm upload
@@ -372,6 +379,8 @@ class FileProcessor:
             )
             confirm_resp.raise_for_status()
         except requests.RequestException as e:
+            report_error(self.config, "upload_confirm", e, host=host_of(self.config.api_base_url), path=local_path,
+                         mime=mime_type, size=file_size)
             raise FileUploadError(f"Failed to confirm upload: {e}")
 
         return data["blob_name"]
@@ -400,8 +409,10 @@ class FileProcessor:
                     f.write(chunk)
 
         except requests.RequestException as e:
+            report_error(self.config, "download", e, host=host_of(url), path=local_path)
             raise FileDownloadError(f"Failed to download file: {e}")
         except IOError as e:
+            report_error(self.config, "download_save", e, host=host_of(url), path=local_path)
             raise FileDownloadError(f"Failed to save file: {e}")
 
     def _get_mime_type(self, path: Path) -> str:

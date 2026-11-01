@@ -340,6 +340,9 @@ class ChatManager:
                 timeout=60,
             )
         except requests.RequestException as e:
+            from .telemetry import host_of, report_error
+
+            report_error(self.config, "api", e, host=host_of(self.config.api_base_url), route=f"{method} {path}")
             raise APIError(0, f"Request failed: {e}")
 
         if resp.status_code == 402:
@@ -473,6 +476,12 @@ class ChatManager:
                 detail = resp.json().get("detail", resp.text)
             except Exception:
                 detail = resp.text
+            if resp.status_code >= 500:
+                # A proxy or edge 5xx (a 502 during a deploy) never reaches the server's own logs; 4xx already do.
+                from .telemetry import host_of, report_error
+
+                report_error(self.config, "api", status=resp.status_code, host=host_of(self.config.api_base_url),
+                             route=f"{method} {path}", message=str(detail)[:300])
             raise APIError(resp.status_code, detail)
 
         return resp.json()

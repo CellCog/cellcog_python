@@ -146,6 +146,7 @@ Then restart the gateway. This is a one-time configuration change.
 
 - **Uploads:** Only files you explicitly reference via `<SHOW_FILE>` are transmitted — the SDK never scans or uploads files without your instruction
 - **Downloads:** Generated files auto-download to `~/.cellcog/chats/{chat_id}/` (or to `GENERATE_FILE` paths if specified)
+- **Error reports (SDK 2.8.0+):** when the SDK itself fails (an upload, a download, an API call that never reached CellCog), it sends one small report so we can see and fix failures on your side. A report carries the failing step, HTTP status, error class, the error message with URLs cut to their host and file paths removed, the file's type and size, a path category (such as `mac` or `windows`, never the path), your OS and Python version. It never carries file contents, prompts, messages, API keys or paths. Each report is tied to your account, and to the chat when there is one, and is kept in our server logs for 30 days. Reports run in the background and never slow or fail your call. Turn them off with `export CELLCOG_DISABLE_ERROR_REPORTS=1`.
 - **Deletion:** `client.delete_chat(chat_id)` — full server-side purge in ~15 seconds. Also available via web UI at https://cellcog.ai
 - **Local storage:** API key at `~/.openclaw/cellcog.json`, daemon state at `~/.cellcog/`
 
