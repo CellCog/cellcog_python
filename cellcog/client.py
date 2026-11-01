@@ -319,9 +319,8 @@ class CellCogClient:
             chat_mode: "agent", "creative", or "team". Legacy names — "agent core",
                 "agent team", "agent team max" — keep working forever.
             chat_tier: "flash" | "core" | "max" — depth/spend within the mode.
-                None in agent mode -> SDK default: "flash" (or "max" when
-                enable_cowork=True — coding needs depth). Other modes: the
-                server applies the mode's default. "creative" has no "flash" tier.
+                None -> the server's default, "core", in every mode (co-work
+                included). Pass "max" for heavy work, "flash" for the quickest.
             enable_cowork: Enable co-work on user's PC
             cowork_working_directory: Working directory for co-work commands
             enable_browse: Enable Browse — the agent drives the user's REAL Chrome
@@ -434,11 +433,9 @@ class CellCogClient:
                         "client.get_browser_status()['available_profiles']."
                     )
 
-        # ── SDK tier default (Mode × Tier rollout, 2026-08): when no chat_tier is
-        # given in agent mode, default to the LOWEST tier — "flash" — except co-work
-        # (coding on a real machine), which needs "max". Explicit chat_tier always wins.
-        if chat_tier is None and resolve_chat_mode(chat_mode) == "human_in_the_loop":
-            chat_tier = "max" if enable_cowork else "flash"
+        # ── Tier default (SDK 2.7.1): no chat_tier -> the SDK sends none and the server
+        # applies its default, Core in every mode, co-work included (Nov 2026). The default
+        # lives in one place, the server. Explicit chat_tier always wins.
 
         # ── Create the chat via API ──
         api_result = self._chat.create(

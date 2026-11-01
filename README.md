@@ -129,7 +129,7 @@ result = client.create_chat(
     prompt="...",
     task_label="...",
     chat_mode="agent",
-    chat_tier="max",                        # "flash" | "core" | "max" — omit for the SDK default
+    chat_tier="max",                        # "flash" | "core" | "max" — omit for the default, "core"
     delivery="send_only",                   # fire-and-forget; default blocks until done
     project_id="...",                       # CellCog project for document context
     agent_role_id="...",                    # Specialized agent role
@@ -217,15 +217,15 @@ a tier for the DEPTH (omit `chat_tier` for the mode's default).
 
 | Mode | Best For | Tiers |
 |------|----------|-------|
-| `"agent"` | Most tasks — assets, documents, production pipelines, coding/co-work | `flash` (SDK default) · `core` · `max` |
-| `"creative"` | Design, brand, frontend craft — taste-first work | `core` (default) · `max` |
+| `"agent"` | Most tasks — assets, documents, production pipelines, coding/co-work | `flash` · `core` (default) · `max` |
+| `"creative"` | Design, brand, frontend craft — taste-first work | `flash` · `core` (default) · `max` |
 | `"team"` | Deep research ONLY — multi-source synthesis, citations (multi-agent) | `flash` · `core` (default) · `max` |
 
-**Tier guidance for agent mode:** omit `chat_tier` and the SDK sends `"flash"` — right for
-simple asset generation and light tasks. **Coding / co-work needs `"max"`** (applied
-automatically when `enable_cowork=True`). Heavy multi-step production (video, data
+**Tier guidance:** omit `chat_tier` and the server applies its default, `"core"`, in every
+mode (co-work included). **Coding / co-work needs `"max"`**: pass it explicitly. Quick, simple
+assets can use `"flash"`. Heavy multi-step production (video, data
 analysis, financial models, legal drafting) → pass `chat_tier="max"` explicitly. Quality
-disappointing on flash? Re-run with `chat_tier="max"`. Use `"team"` only for deep research.
+disappointing? Re-run with `chat_tier="max"`. Use `"team"` only for deep research.
 
 Legacy mode names (`"agent core"`, `"agent team"`, `"agent team max"`) keep working
 forever — the server normalizes them to their historical operating points.

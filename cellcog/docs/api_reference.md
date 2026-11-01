@@ -38,9 +38,8 @@ result = client.create_chat(
     notify_session_key: str = None,       # OpenClaw session key (notify mode only)
     gateway_url: str = None,              # OpenClaw Gateway URL (notify mode only)
     chat_mode: str = "agent",             # "agent", "creative", "team" (legacy names still work)
-    chat_tier: str = None,                # "flash" | "core" | "max". Agent mode + None -> SDK default:
-                                          #   "flash" ("max" when enable_cowork=True — coding needs depth).
-                                          #   Other modes + None -> server default. Creative has no flash.
+    chat_tier: str = None,                # "flash" | "core" | "max". None -> the server default,
+                                          #   "core", in every mode (co-work included).
     project_id: str = None,               # Project context (see project-management-cellcog)
     agent_role_id: str = None,            # Specialized role (requires project_id)
     enable_cowork: bool = False,          # Direct machine access (see pair-programming-cellcog)
