@@ -77,6 +77,8 @@ Prompts may embed files for the agent with `<SHOW_FILE>/abs/path</SHOW_FILE>` ta
 
 - **`hc://` paths do NOT resolve in SDK-created chats.** hc:// resolution is scoped to the chat that owns the Desktop (Co-work) session; a chat created via `create_chat()` has no such session, even when your own orchestrating chat does. The working pattern: stage the files into a workspace the new chat can reach first (e.g. FileTransfer them into your container), then reference the CONTAINER paths in the prompt — the platform uploads and renders them for the sub-agent. This also keeps prompts small (a 6-file design brief shrank 143K to 10K chars vs embedding sources inline).
 - **Prompt size cap: 50,000 characters** (`create_chat` returns 422 `string_too_long` beyond it). Embedding source files inline is the usual way to hit it — use the staging pattern above instead.
+- **Restricted networks (SDK 2.8.1+):** files normally go straight to CellCog's file storage. When your environment allows `cellcog.ai` but blocks that storage (Claude's code-execution sandbox does), the SDK sends and fetches the same files through `cellcog.ai` instead, so `cellcog.ai` is the only domain you need to allow. Uploads through `cellcog.ai` are limited to 100 MB per file.
+- **A file that cannot be uploaded stops the send (SDK 2.8.1+):** `create_chat()` and `send_message()` raise `FileUploadError` naming each file and the reason, and nothing is sent. A result file that cannot be downloaded keeps its path in the message, followed by a `[cellcog: this file was not downloaded: <reason>]` line.
 
 ### send_message()
 

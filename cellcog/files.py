@@ -18,6 +18,34 @@ from .state_paths import state_path
 from .telemetry import host_of, report_error
 
 
+# CEL-3867 (Nov 2026): some environments allow cellcog.ai but refuse storage.googleapis.com (Claude's code-execution
+# sandbox: its proxy answers 403 to the CONNECT). Uploads and downloads then go through cellcog.ai instead.
+PROXY_UPLOAD_MAX_BYTES = 100 * 1024 * 1024  # the server's cap for bytes sent through cellcog.ai
+
+
+def _is_storage_block(exc: BaseException) -> bool:
+    """A connection that never reached storage (proxy refusal, DNS, refused connect), as opposed to an HTTP answer."""
+    return isinstance(exc, requests.exceptions.ConnectionError)
+
+
+def _short_reason(exc: BaseException) -> str:
+    """One readable reason, never a signed URL."""
+    resp = getattr(exc, "response", None)
+    code = getattr(resp, "status_code", None)
+    if isinstance(code, int):
+        detail = ""
+        try:
+            detail = str((resp.json() or {}).get("detail") or "")[:200]
+        except Exception:  # noqa: BLE001
+            pass
+        return f"HTTP {code}" + (f": {detail}" if detail else "")
+    if isinstance(exc, requests.exceptions.ProxyError):
+        return "the network proxy refused the connection"
+    if isinstance(exc, requests.exceptions.Timeout):
+        return "the connection timed out"
+    return type(exc).__name__
+
+
 class FileProcessor:
     """
     Handles file upload/download and path translation for CellCog SDK.
@@ -39,6 +67,8 @@ class FileProcessor:
     def __init__(self, config: Config):
         self.config = config
         self.default_download_dir = state_path("chats")
+        # Set after the first blocked storage connection: the rest of this run goes through cellcog.ai directly.
+        self._storage_blocked = False
 
     def transform_outgoing(self, message: str) -> tuple[str, list]:
         """
@@ -63,6 +93,7 @@ class FileProcessor:
         """
         uploaded = []
         missing_files = []
+        failed_uploads = []
 
         def replace_show_file(match):
             attrs = match.group(1)
@@ -86,8 +117,9 @@ class FileProcessor:
 
                         # Add external_local_path to preserve original path for history restoration
                         return f'<SHOW_FILE external_local_path="{file_path}">{blob_name}</SHOW_FILE>'
-                    except FileUploadError:
-                        # If upload fails, keep original (will fail on CellCog side)
+                    except FileUploadError as e:
+                        # Never send a dead local path (CEL-3867): collect it and fail loudly below.
+                        failed_uploads.append((file_path, str(e)))
                         return match.group(0)
             except (OSError, ValueError):
                 # os.path.exists() can raise on severely malformed paths
@@ -189,6 +221,15 @@ class FileProcessor:
                 f"access is available."
             )
 
+        # Fail loudly if any SHOW_FILE file exists but could not be uploaded (CEL-3867)
+        if failed_uploads:
+            files_list = "\n".join(f"  - {path}: {why}" for path, why in failed_uploads)
+            raise FileUploadError(
+                f"Cannot send this message: {len(failed_uploads)} file(s) failed to upload to CellCog:\n"
+                f"{files_list}\n\n"
+                f"Nothing was sent to CellCog. Fix the cause and send again."
+            )
+
         return transformed, uploaded
 
     def transform_incoming_history(
@@ -248,11 +289,10 @@ class FileProcessor:
                 if is_cellcog_message and should_download and blob_name in blob_name_to_url:
                     url_data = blob_name_to_url[blob_name]
                     try:
-                        self._download_file(url_data["url"], local_path)
-                    except FileDownloadError:
-                        # If download fails, still return the path
-                        # (file just won't exist)
-                        pass
+                        self._download_file(url_data["url"], local_path, chat_id=chat_id, ref=blob_name)
+                    except FileDownloadError as e:
+                        # Loud, never silent (CEL-3867): say the file was not saved, and why.
+                        return f"<SHOW_FILE>{local_path}</SHOW_FILE>\n[cellcog: this file was not downloaded: {e}]"
 
                 # Return with local path (remove blob_name and attributes)
                 return f"<SHOW_FILE>{local_path}</SHOW_FILE>"
@@ -355,20 +395,28 @@ class FileProcessor:
                          mime=mime_type, size=file_size)
             raise FileUploadError(f"Failed to get upload URL: {e}")
 
-        # Step 2: Upload to signed URL
-        try:
-            with open(local_path, "rb") as f:
-                put_resp = requests.put(
-                    data["upload_url"],
-                    data=f,
-                    headers={"Content-Type": mime_type},
-                    timeout=300,  # 5 min timeout for large files
-                )
-                put_resp.raise_for_status()
-        except requests.RequestException as e:
-            report_error(self.config, "upload_put", e, host=host_of(data.get("upload_url")), path=local_path,
-                         mime=mime_type, size=file_size)
-            raise FileUploadError(f"Failed to upload file: {e}")
+        # Step 2: Upload the bytes. Direct to the signed storage URL first; a network that refuses storage falls back to
+        # cellcog.ai, and the rest of this run skips the direct attempt (CEL-3867).
+        direct_ok = False
+        if not self._storage_blocked:
+            try:
+                with open(local_path, "rb") as f:
+                    put_resp = requests.put(
+                        data["upload_url"],
+                        data=f,
+                        headers={"Content-Type": mime_type},
+                        timeout=300,  # 5 min timeout for large files
+                    )
+                    put_resp.raise_for_status()
+                direct_ok = True
+            except requests.RequestException as e:
+                report_error(self.config, "upload_put", e, host=host_of(data.get("upload_url")), path=local_path,
+                             mime=mime_type, size=file_size)
+                if not _is_storage_block(e):
+                    raise FileUploadError(f"Failed to upload {path.name}: {_short_reason(e)}")
+                self._storage_blocked = True
+        if not direct_ok:
+            self._upload_via_cellcog(local_path, data["file_id"], mime_type, file_size)
 
         # Step 3: Confirm upload
         try:
@@ -385,35 +433,102 @@ class FileProcessor:
 
         return data["blob_name"]
 
-    def _download_file(self, url: str, local_path: str) -> None:
+    def _upload_via_cellcog(self, local_path: str, file_id: str, mime_type: str, file_size: int) -> None:
+        """Send a pending upload's bytes through cellcog.ai (storage.googleapis.com unreachable from here)."""
+        name = Path(local_path).name
+        if file_size > PROXY_UPLOAD_MAX_BYTES:
+            raise FileUploadError(
+                f"Cannot upload {name} ({file_size / (1024 * 1024):.1f} MB): this environment blocks CellCog's file "
+                f"storage, and uploads through cellcog.ai are limited to {PROXY_UPLOAD_MAX_BYTES // (1024 * 1024)} MB. "
+                f"Send a smaller file."
+            )
+        api = self.config.api_base_url
+        try:
+            with open(local_path, "rb") as f:
+                resp = requests.put(
+                    f"{api}/files/upload-bytes/{file_id}",
+                    data=f,
+                    headers={**self.config.get_request_headers(), "Content-Type": mime_type},
+                    timeout=300,
+                )
+                resp.raise_for_status()
+        except requests.RequestException as e:
+            report_error(self.config, "upload_fallback", e, host=host_of(api), path=local_path, mime=mime_type,
+                         size=file_size)
+            raise FileUploadError(f"Failed to upload {name} through cellcog.ai: {_short_reason(e)}")
+
+    def _download_file(self, url: str, local_path: str, chat_id: Optional[str] = None,
+                       ref: Optional[str] = None) -> None:
         """
         Download file from URL to local path.
 
         Args:
             url: Signed URL to download from
             local_path: Local path to save file
+            chat_id: The chat the file belongs to (enables the cellcog.ai fallback)
+            ref: The SHOW_FILE reference as it appears in the chat history (enables the cellcog.ai fallback)
 
         Raises:
             FileDownloadError: If download fails
         """
         try:
-            # Create parent directories
             Path(local_path).parent.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            report_error(self.config, "download_save", e, host=host_of(url), path=local_path)
+            raise FileDownloadError(f"could not create the folder for it ({type(e).__name__})")
 
-            # Download with streaming for large files
-            resp = requests.get(url, stream=True, timeout=300)
+        can_fall_back = bool(chat_id and ref)
+        if not self._storage_blocked:
+            try:
+                resp = requests.get(url, stream=True, timeout=300)
+                resp.raise_for_status()
+                self._save_stream(resp, local_path, url)
+                return
+            except requests.RequestException as e:
+                report_error(self.config, "download", e, host=host_of(url), path=local_path)
+                if not (_is_storage_block(e) and can_fall_back):
+                    raise FileDownloadError(f"download failed ({_short_reason(e)})")
+                self._storage_blocked = True
+        if not can_fall_back:
+            raise FileDownloadError("download failed (CellCog's file storage is not reachable from this environment)")
+
+        # CEL-3867: the same file through cellcog.ai, same access rules as the chat history.
+        api = self.config.api_base_url
+        try:
+            resp = requests.get(
+                f"{api}/cellcog/chat/{chat_id}/file",
+                params={"ref": ref},
+                headers=self.config.get_request_headers(),
+                stream=True,
+                timeout=300,
+            )
             resp.raise_for_status()
+            self._save_stream(resp, local_path, api)
+        except requests.RequestException as e:
+            report_error(self.config, "download_fallback", e, host=host_of(api), path=local_path, chat_id=chat_id)
+            raise FileDownloadError(f"download through cellcog.ai failed ({_short_reason(e)})")
 
-            with open(local_path, "wb") as f:
+    def _save_stream(self, resp, local_path: str, source_url: str) -> None:
+        """Write a streamed response to local_path via a .part file, so a broken download never leaves a half file."""
+        part = f"{local_path}.part"
+        try:
+            with open(part, "wb") as f:
                 for chunk in resp.iter_content(chunk_size=8192):
                     f.write(chunk)
-
-        except requests.RequestException as e:
-            report_error(self.config, "download", e, host=host_of(url), path=local_path)
-            raise FileDownloadError(f"Failed to download file: {e}")
+            os.replace(part, local_path)
         except IOError as e:
-            report_error(self.config, "download_save", e, host=host_of(url), path=local_path)
-            raise FileDownloadError(f"Failed to save file: {e}")
+            report_error(self.config, "download_save", e, host=host_of(source_url), path=local_path)
+            try:
+                os.remove(part)
+            except OSError:
+                pass
+            raise FileDownloadError(f"could not save it ({type(e).__name__})")
+        except requests.RequestException:
+            try:
+                os.remove(part)
+            except OSError:
+                pass
+            raise
 
     def _get_mime_type(self, path: Path) -> str:
         """Get MIME type for a file."""
