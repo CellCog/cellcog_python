@@ -201,11 +201,18 @@ class FileProcessor:
 
         # Match paths starting with / or ~/ that contain at least one / separator
         # and are not already inside XML-like tags
-        transformed = re.sub(
-            r"(?<![<\"=])(?:/[\w.+\-][\w.+\-/]*|~/[\w.+\-][\w.+\-/]*)",
-            _auto_upload_bare_path,
-            transformed,
-        )
+        # Scan only the text OUTSIDE existing file tags (Nov 6 2026): inside a tag, a Windows path such as
+        # external_local_path="C:/Users/me/a.webp" contains "/Users/me/a.webp", which the bare-path pattern matched
+        # and wrapped in a second tag INSIDE the attribute, so the chat rendered broken tag text.
+        _bare_path_re = re.compile(r"(?<![<\"=])(?:/[\w.+\-][\w.+\-/]*|~/[\w.+\-][\w.+\-/]*)")
+        _tag_span_re = re.compile(r"<(SHOW_FILE|GENERATE_FILE)\b[^>]*>.*?</\1>", re.DOTALL)
+        _parts, _pos = [], 0
+        for _m in _tag_span_re.finditer(transformed):
+            _parts.append(_bare_path_re.sub(_auto_upload_bare_path, transformed[_pos:_m.start()]))
+            _parts.append(_m.group(0))
+            _pos = _m.end()
+        _parts.append(_bare_path_re.sub(_auto_upload_bare_path, transformed[_pos:]))
+        transformed = "".join(_parts)
 
         # Fail early if any SHOW_FILE-referenced local files are missing
         if missing_files:
