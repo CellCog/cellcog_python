@@ -767,11 +767,10 @@ class CellCogDaemon:
         """Main WebSocket loop with auto-reconnect."""
         # Build WebSocket URL
         ws_base = self.api_base_url.replace("https://", "wss://").replace("http://", "ws://")
-        ws_url = f"{ws_base}/cellcog/ws/user/stream?api_key={self.api_key}"
-
-        # Log URL without exposing full API key
-        safe_url = f"{ws_base}/cellcog/ws/user/stream?api_key={self.api_key[:10]}..."
-        log.info(f"WebSocket URL: {safe_url}")
+        # The API key travels in the X-API-Key handshake header, never in the address: proxies and load balancers
+        # log the address of every connection, and an API key does not expire.
+        ws_url = f"{ws_base}/cellcog/ws/user/stream"
+        log.info(f"WebSocket URL: {ws_url}")
 
         while self.ws_connected and self.running:
             try:
@@ -783,7 +782,10 @@ class CellCogDaemon:
                     ws_url,
                     ping_interval=30,
                     ping_timeout=10,
-                    additional_headers={"User-Agent": f"CellCog-SDK/{self._get_sdk_version()}"},
+                    additional_headers={
+                        "User-Agent": f"CellCog-SDK/{self._get_sdk_version()}",
+                        "X-API-Key": self.api_key,
+                    },
                 ) as ws:
                     log.info("✓ WebSocket connected successfully!")
                     self.ws_healthy = True
