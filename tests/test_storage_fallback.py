@@ -114,12 +114,29 @@ def main():
 
     install(lambda *a, **k: _Resp(status=403, payload={}))
     fp = F.FileProcessor(_Cfg())
+    blob = fp._upload_file(tmpfile())
+    check("a storage PUT answered 403 falls back to /files/upload-bytes, then confirms",
+          blob == "human_files/u/ref.png" and ("PUT", f"{API}/files/upload-bytes/f1") in CALLS
+          and ("POST", f"{API}/files/confirm-upload/f1") in CALLS, str(CALLS))
+    check("a 403 answer is not remembered: the next upload tries storage first", fp._storage_blocked is False)
+
+    install(lambda *a, **k: _Resp(status=404, payload={}))
+    fp = F.FileProcessor(_Cfg())
     try:
         fp._upload_file(tmpfile()); err = ""
     except FileUploadError as e:
         err = str(e)
-    check("[FAIL control] an HTTP 403 FROM storage is not a block: no fallback, clear error",
-          "HTTP 403" in err and not any("upload-bytes" in c[1] for c in CALLS) and "X-Goog-Signature" not in err, err)
+    check("[FAIL control] an HTTP 404 FROM storage is a real answer: no fallback, clear error",
+          "HTTP 404" in err and not any("upload-bytes" in c[1] for c in CALLS) and "X-Goog-Signature" not in err, err)
+
+    install(lambda *a, **k: _Resp(status=403, payload={}), put_fallback=lambda *a, **k: _Resp(status=500, payload={"detail": "boom"}))
+    fp = F.FileProcessor(_Cfg())
+    try:
+        fp._upload_file(tmpfile()); err = ""
+    except FileUploadError as e:
+        err = str(e)
+    check("[FAIL control] a 403 from storage AND a failing cellcog.ai route is an error, with no signed link in it",
+          err != "" and "X-Goog-Signature" not in err, err)
 
     install(proxy_block)
     fp = F.FileProcessor(_Cfg())
@@ -158,6 +175,30 @@ def main():
     check("a proxy-refused storage GET falls back to /cellcog/chat/{id}/file with the ref",
           open(dest, "rb").read() == b"via-cellcog" and fb and fb[0][2] == {"ref": ref}, str(CALLS))
     check("no .part file is left behind", not os.path.exists(dest + ".part"))
+
+    install(lambda *a, **k: _Resp(), get_storage=lambda *a, **k: _Resp(status=403))
+    fp = F.FileProcessor(_Cfg())
+    dest3 = os.path.join(tempfile.mkdtemp(), "b.png")
+    fp._download_file(STORAGE, dest3, chat_id=chat_id, ref=ref)
+    check("a storage GET answered 403 falls back to /cellcog/chat/{id}/file, and is not remembered",
+          open(dest3, "rb").read() == b"via-cellcog" and fp._storage_blocked is False, str(CALLS))
+
+    install(lambda *a, **k: _Resp(), get_storage=lambda *a, **k: _Resp(status=404))
+    fp = F.FileProcessor(_Cfg())
+    try:
+        fp._download_file(STORAGE, os.path.join(tempfile.mkdtemp(), "c.png"), chat_id=chat_id, ref=ref); err = ""
+    except FileDownloadError as e:
+        err = str(e)
+    check("[FAIL control] a storage GET answered 404 is a real answer: no fallback",
+          "HTTP 404" in err and not any(c[0] == "GET" and "cellcog.ai" in c[1] for c in CALLS), err + " " + str(CALLS))
+
+    install(lambda *a, **k: _Resp(), get_storage=lambda *a, **k: _Resp(status=403))
+    fp = F.FileProcessor(_Cfg())
+    try:
+        fp._download_file(STORAGE, os.path.join(tempfile.mkdtemp(), "d.png")); err = ""
+    except FileDownloadError as e:
+        err = str(e)
+    check("[FAIL control] a 403 with no chat to fall back to stays an error", "HTTP 403" in err and "X-Goog-Signature" not in err, err)
 
     install(lambda *a, **k: _Resp(), get_storage=lambda *a, **k: _Resp(body=b"direct"))
     fp = F.FileProcessor(_Cfg())

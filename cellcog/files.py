@@ -23,9 +23,23 @@ from .telemetry import host_of, report_error
 PROXY_UPLOAD_MAX_BYTES = 100 * 1024 * 1024  # the server's cap for bytes sent through cellcog.ai
 
 
+# HTTP answers to a DIRECT storage request that mean "refused on the way" (Nov 2026): some sandbox networks answer 403
+# (or 407) themselves instead of refusing the connection, so no ConnectionError is raised. The second route through
+# cellcog.ai applies the chat's own access rules, so trying it after such an answer is always safe.
+_REFUSED_STATUSES = (403, 407)
+
+
 def _is_storage_block(exc: BaseException) -> bool:
-    """A connection that never reached storage (proxy refusal, DNS, refused connect), as opposed to an HTTP answer."""
+    """A connection that never reached storage (proxy refusal, DNS, refused connect), as opposed to an HTTP answer.
+    Remembered for the rest of the run: later files skip the direct attempt."""
     return isinstance(exc, requests.exceptions.ConnectionError)
+
+
+def _is_refused_answer(exc: BaseException) -> bool:
+    """The direct storage request was answered 403/407. THIS file goes through cellcog.ai; the answer is not
+    remembered, so the next file tries storage first again. Any other HTTP answer is a real answer about the file."""
+    resp = getattr(exc, "response", None)
+    return isinstance(exc, requests.exceptions.HTTPError) and getattr(resp, "status_code", None) in _REFUSED_STATUSES
 
 
 def _short_reason(exc: BaseException) -> str:
@@ -419,9 +433,10 @@ class FileProcessor:
             except requests.RequestException as e:
                 report_error(self.config, "upload_put", e, host=host_of(data.get("upload_url")), path=local_path,
                              mime=mime_type, size=file_size)
-                if not _is_storage_block(e):
+                if _is_storage_block(e):
+                    self._storage_blocked = True
+                elif not _is_refused_answer(e):
                     raise FileUploadError(f"Failed to upload {path.name}: {_short_reason(e)}")
-                self._storage_blocked = True
         if not direct_ok:
             self._upload_via_cellcog(local_path, data["file_id"], mime_type, file_size)
 
@@ -493,9 +508,10 @@ class FileProcessor:
                 return
             except requests.RequestException as e:
                 report_error(self.config, "download", e, host=host_of(url), path=local_path)
-                if not (_is_storage_block(e) and can_fall_back):
+                if not ((_is_storage_block(e) or _is_refused_answer(e)) and can_fall_back):
                     raise FileDownloadError(f"download failed ({_short_reason(e)})")
-                self._storage_blocked = True
+                if _is_storage_block(e):
+                    self._storage_blocked = True
         if not can_fall_back:
             raise FileDownloadError("download failed (CellCog's file storage is not reachable from this environment)")
 
