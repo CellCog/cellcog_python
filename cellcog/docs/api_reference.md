@@ -164,7 +164,7 @@ status = client.get_browser_status()
 #   "chrome_running": bool,
 #   "active_profile": {...} | None,
 #   "available_profiles": [
-#     {"profileDir": "Default", "profileName": "Nitish", "hostedDomain": None,
+#     {"profileDir": "Default", "profileName": "Work", "hostedDomain": None,
 #      "hasExtension": True, "connected": True}, ...
 #   ],
 #   "agent_tab_count": int,

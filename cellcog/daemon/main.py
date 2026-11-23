@@ -1383,7 +1383,7 @@ def run_daemon():
         api_base_url = config.api_base_url
 
     log.info(f"Starting daemon with API base URL: {api_base_url}")
-    log.info(f"API key: {api_key[:10]}...")
+    log.info("API key: set")
 
     # Create daemon
     daemon = CellCogDaemon(api_key, api_base_url)

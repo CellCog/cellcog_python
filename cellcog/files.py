@@ -18,7 +18,7 @@ from .state_paths import state_path
 from .telemetry import host_of, report_error
 
 
-# CEL-3867 (Nov 2026): some environments allow cellcog.ai but refuse storage.googleapis.com (Claude's code-execution
+# Nov 2026: some environments allow cellcog.ai but refuse storage.googleapis.com (Claude's code-execution
 # sandbox: its proxy answers 403 to the CONNECT). Uploads and downloads then go through cellcog.ai instead.
 PROXY_UPLOAD_MAX_BYTES = 100 * 1024 * 1024  # the server's cap for bytes sent through cellcog.ai
 
@@ -132,7 +132,7 @@ class FileProcessor:
                         # Add external_local_path to preserve original path for history restoration
                         return f'<SHOW_FILE external_local_path="{file_path}">{blob_name}</SHOW_FILE>'
                     except FileUploadError as e:
-                        # Never send a dead local path (CEL-3867): collect it and fail loudly below.
+                        # Never send a dead local path: collect it and fail loudly below.
                         failed_uploads.append((file_path, str(e)))
                         return match.group(0)
             except (OSError, ValueError):
@@ -242,7 +242,7 @@ class FileProcessor:
                 f"access is available."
             )
 
-        # Fail loudly if any SHOW_FILE file exists but could not be uploaded (CEL-3867)
+        # Fail loudly if any SHOW_FILE file exists but could not be uploaded
         if failed_uploads:
             files_list = "\n".join(f"  - {path}: {why}" for path, why in failed_uploads)
             raise FileUploadError(
@@ -312,7 +312,7 @@ class FileProcessor:
                     try:
                         self._download_file(url_data["url"], local_path, chat_id=chat_id, ref=blob_name)
                     except FileDownloadError as e:
-                        # Loud, never silent (CEL-3867): say the file was not saved, and why.
+                        # Loud, never silent: say the file was not saved, and why.
                         return f"<SHOW_FILE>{local_path}</SHOW_FILE>\n[cellcog: this file was not downloaded: {e}]"
 
                 # Return with local path (remove blob_name and attributes)
@@ -417,7 +417,7 @@ class FileProcessor:
             raise FileUploadError(f"Failed to get upload URL: {e}")
 
         # Step 2: Upload the bytes. Direct to the signed storage URL first; a network that refuses storage falls back to
-        # cellcog.ai, and the rest of this run skips the direct attempt (CEL-3867).
+        # cellcog.ai, and the rest of this run skips the direct attempt.
         direct_ok = False
         if not self._storage_blocked:
             try:
@@ -515,7 +515,7 @@ class FileProcessor:
         if not can_fall_back:
             raise FileDownloadError("download failed (CellCog's file storage is not reachable from this environment)")
 
-        # CEL-3867: the same file through cellcog.ai, same access rules as the chat history.
+        # The same file through cellcog.ai, same access rules as the chat history.
         api = self.config.api_base_url
         try:
             resp = requests.get(

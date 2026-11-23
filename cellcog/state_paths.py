@@ -1,5 +1,5 @@
 """
-CellCog SDK state-directory resolution (CEL-1300 item 1).
+CellCog SDK state-directory resolution.
 
 All SDK state (tracked chats, downloaded files, daemon pid/heartbeat/version/log,
 seen indices) lives under ONE base directory, resolved once per process:

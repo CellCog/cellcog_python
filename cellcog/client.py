@@ -1281,7 +1281,7 @@ class CellCogClient:
         ])
 
         # The chat is STILL RUNNING server-side. status="timeout" historically read
-        # as failure and misfired callers' retry logic (CEL-1300); status now reflects
+        # as failure and misfired callers' retry logic; status now reflects
         # the chat's real state, and timed_out=True carries "the SDK stopped waiting".
         return {
             "chat_id": chat_id,
@@ -1725,7 +1725,7 @@ class CellCogClient:
 
     # Process-wide warn-once / give-up flags (class-level by design): a stale
     # heartbeat or an unstartable daemon would otherwise print on EVERY SDK call
-    # in headless environments (CEL-1300 item 7).
+    # in headless environments.
     _heartbeat_warned = False
     _daemon_start_failures = 0
 
@@ -1756,7 +1756,7 @@ class CellCogClient:
         finally:
             # Clean up PID + daemon health files. Leaving a stale heartbeat behind
             # made every subsequent SDK call re-warn "heartbeat stale" and re-kill
-            # forever with the same age (CEL-1300 item 7).
+            # forever with the same age.
             for stale in (self._daemon_pid_file, state_path("daemon.heartbeat"), state_path("daemon.version")):
                 try:
                     stale.unlink(missing_ok=True)

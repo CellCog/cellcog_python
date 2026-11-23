@@ -211,8 +211,7 @@ class ChatManager:
             "name": resp["name"],
             "is_operating": resp["operating"],
             "error_type": error_type,
-            # Most recent agent progress one-liner (server: ChatMeta.latest_status_update,
-            # CEL-1300 item 6). None until the agent posts its first update of a run.
+            # Most recent agent progress one-liner. None until the agent posts its first update of a run.
             "latest_update": resp.get("latest_status_update"),
         }
 

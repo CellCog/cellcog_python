@@ -1,4 +1,4 @@
-"""Tests for the storage fallback (CEL-3867): when storage.googleapis.com is unreachable, uploads and downloads go
+"""Tests for the storage fallback: when storage.googleapis.com is unreachable, uploads and downloads go
 through cellcog.ai, and a file that still fails is reported loudly. No network: requests calls are replaced.
 
 Run: python3 tests/test_storage_fallback.py   (or pytest)
